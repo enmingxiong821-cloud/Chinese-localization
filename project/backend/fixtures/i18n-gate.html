@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!--
+  层 C locale 解析链的**逐字复刻**，取自已安装的
+  app/resources/ion-dist/assets/v1/shared-50-Bmc9oUMm.js（偏移约 104959-106000）。
+  仅用于本机验证注入机制，标识符与逻辑均未改写，便于与真实 bundle 对照。
+  这段代码是 Anthropic 的产品资源，属第三方内容，不得随本项目分发。
+
+  C_ w_ T_ E_ D_ O_ k_  ——locale 解析链，注入是否生效只看这条链的输出
+  A_ M_ N_ I_ j_         ——白名单与伪语言表，用于确认未注入时的兜底行为
+-->
+<meta charset="utf-8">
+<title>i18n gate fixture</title>
+<pre id="out">pending</pre>
+<script>
+var C_="en-US",w_=["en-US","de-DE","fr-FR","ko-KR","ja-JP","es-419","es-ES","it-IT","hi-IN","pt-BR","id-ID"];function T_(e,t=w_){let n=new Map;for(let e of t){let t=e.toLowerCase();n.set(t,e);let r=t.split("-")[0];n.has(r)||n.set(r,e)}for(let t of e)if(t){let e=t.toLowerCase(),r=n.get(e);if(r!==void 0)return r;let i=e.split("-")[0],a=i.length?n.get(i):void 0;if(a!==void 0)return a}return C_}function E_(){let e=[];try{if(typeof document<"u"){let t=document.querySelector('meta[name="i18n-catalogs"]')?.dataset.i18nCatalogs||"";for(let n of t.split(",")){let t=/^([\w-]+):([\w-]+)\.([\w-]+)\.([\w-]+)$/.exec(n);t&&e.push(t.slice(1))}}}catch{}return e}function D_(){return E_().map(e=>e[0])}function O_(){let e=null;try{e=localStorage.getItem(f_)}catch{e=null}if(!e)return T_(navigator.languages);let t=e.toLowerCase();for(let[e]of E_())if(e.toLowerCase()===t)return e;return T_([e])}function k_(e){for(let[t,n,r,i]of E_())if(t===e)return{base:"/i18n/"+e+".json?v="+n,dynamic:"/i18n/dynamic/"+e+".json?v="+r,overrides:"/i18n/"+e+".overrides.json?v="+i};let t=encodeURIComponent(e);return{base:"/i18n/"+t+".json",dynamic:"/i18n/dynamic/"+t+".json",overrides:"/i18n/"+t+".overrides.json"}}var A_="en-US";function j_(e){return e===A_}var M_=["en-US","de-DE","fr-FR","ko-KR","ja-JP","es-419","es-ES","it-IT","hi-IN","pt-BR","id-ID"];function N_(e){return M_.includes(e)}
+var d_=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,f_="spa:locale",p_=/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8}){0,3}$/;function m_(){try{let e=localStorage.getItem(f_);return e&&p_.test(e)?e:void 0}catch{return}}var h_="spa:locale-source",g_="user_choice";
+
+window.__gate = { ready: false };
+(async () => {
+  const locale = O_();
+  const urls = k_(locale);
+  const out = { locale, isEnglish: j_(locale), whitelisted: N_(locale), catalogs: E_(), urls, fetched: {} };
+  for (const key of ["base", "dynamic", "overrides"]) {
+    try {
+      const response = await fetch(urls[key]);
+      out.fetched[key] = { status: response.status, body: (await response.text()).slice(0, 120) };
+    } catch (error) {
+      out.fetched[key] = { error: String(error) };
+    }
+  }
+  out.ready = true;
+  window.__gate = out;
+  document.getElementById("out").textContent = JSON.stringify(out, null, 2);
+})();
+</script>

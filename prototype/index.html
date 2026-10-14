@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>译界 · 汉化工作台原型</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">译</span><div><strong>译界</strong><small>LOCALIZATION STUDIO</small></div></div>
+    <div class="workspace">个人工作空间 <span>本机</span></div>
+    <nav aria-label="主导航">
+      <button data-page="apps" class="nav active">应用汉化 <span>02</span></button>
+      <button data-page="screen" class="nav">屏幕翻译</button>
+      <button data-page="browser" class="nav">浏览器连接</button>
+      <div class="nav-label">翻译资源</div>
+      <button data-page="terms" class="nav">术语库</button>
+      <button data-page="engines" class="nav">翻译引擎</button>
+      <button data-page="recovery" class="nav">恢复与诊断</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="dot"></span> 离线交互原型 <small>v0.1 · 不连接真实应用</small></div>
+  </aside>
+  <div class="shell">
+    <header class="topbar"><span>工作台 <span class="slash">/</span> <b id="breadcrumb">应用汉化</b></span><div><span class="badge amber">演示环境</span><button class="avatar" data-action="about" aria-label="查看原型说明">P</button></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer>仅演示操作流程 · 不扫描本机、不改应用文件、不调用翻译 API <span>Windows / Browser</span></footer>
+  </div>
+  <dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

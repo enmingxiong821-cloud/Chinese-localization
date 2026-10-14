@@ -1,0 +1,468 @@
+桌面应用汉化与实时翻译——项目审查、资料整理与设计蓝图
+审查日期：2026-10-14
+文档性质：当前项目审查与下一阶段建设方案，不是产品完成证明。
+范围：项目源码、既有阶段文档、调研索引及当前后端测试。
+本轮不修改业务代码、不安装候选、不修改目标应用或系统配置。
+
+================================================================
+一、结论与阅读指引
+================================================================
+
+1. 当前已经有可运行的“资源扫描—候选生成—完整性检查—人工审核草稿—Claude审核副本合并”技术链路。
+2. 当前不是完整桌面汉化产品。正式Electron界面、Windows原生模块、实际安装与恢复、OCR、翻译服务、浏览器插件均未完成。
+3. prototype/index.html为演示原型；project/frontend/reviews为真实候选数据的离线审核页面。二者不能混为真实汉化界面。
+4. 本轮执行 node --test project/backend/*.test.mjs：52项通过、0失败、0跳过。仅证明这些测试通过；不代表真实应用运行时、安装恢复和全屏翻译已验证。
+5. 最应改变的开发节奏：停止重复生成同统计的新目录，优先做“一款指定版本的真实加载、页面对照、可恢复验证”，同时推进第二款应用的明确页面范围。
+6. 在真实加载前先修复文件读取边界、派生候选审计关联、测试命名与覆盖真实性；再接真实UI。不用靠增加文档和候选数量替代功能验收。
+
+证据等级：
+- 本轮证实：当前源码、目录清单、本轮52项测试、官方文档读取。
+- 历史已验证：阶段文档和对话记录中的资源扫描、候选及浏览器检查；本轮不冒称重新安装验证。
+- 已设计未实现：Electron/C#混合架构、OCR、插件、同步、生产安装器。
+- 待核实：不同版本兼容性、线上资源变化、当前仓库活跃度及全部第三方授权。
+
+================================================================
+二、用户需求与产品边界
+================================================================
+
+优先级：
+A 应用界面汉化最迫切，主要使用Cursor、Claude等国外开发软件。
+B 任意可支持窗口/区域的屏幕翻译。
+C 网页、文档与AI聊天内容。
+D 游戏画面和对话，后续扩展。
+E 视频、会议和直播字幕，后续扩展。
+
+首批策略：Cursor、Claude各完成一组常用页面，不先只把其中一个做完。
+平台：先Windows与Chrome/Edge；其他平台与手机后续。
+翻译：本地离线与云端均保留，但当前没有实际翻译服务接入。
+交付：先自用，保留给朋友使用、开源和商业化的可能。
+实现：复用成熟库、项目工具和可合法复用源码；不能把来源不清的代码直接当安装驱动。
+
+直接汉化与屏幕翻译的区别：
+- 直接汉化改变目标应用语言资源或运行时界面呈现，需要应用与版本适配。
+- 屏幕翻译读文字或图像，在独立层显示译文，不意味着内部控件文字已修改。
+- “全部汉化”必须变成指定版本、页面清单、可见文案范围的验收目标。
+- 代码、路径、终端命令、品牌/模型标识、输入内容默认不做界面字符串替换。
+- 用户场景授权不自动等同于任意改签名、提升权限、关闭更新或重新分发目标软件。
+
+================================================================
+三、项目目录与已实现模块
+================================================================
+
+项目现有目录：
+doc/        设计、调研和阶段验证资料。
+prototype/  HTML/CSS/JS演示界面。
+project/backend/ 当前Node ESM模块、CLI和单元测试。
+project/frontend/candidates/ 候选资源及派生候选。
+project/frontend/reviews/    离线审核页、审核草稿和浏览器导出测试文件。
+research/   6个检索/README采集脚本、18份README快照。
+database/、utils/ 为后续保留目录，不代表已有数据库或完整工具体系。
+
+源码作用：
+- scanner.mjs / scan-cli.mjs：明确安装根目录中的白名单资源读取；16MiB资源限制；指纹、NLS数量及链接检查。
+- cursor-pack.mjs / build-cursor-pack.mjs：按模块和键映射微软中文语言资源，分离重复键、冲突键和待审核项。
+- claude-candidate.mjs / build-claude-candidate.mjs：优先复用本机自带简体中文，短文案词典补充，未知内容保留原文。
+- translation-quality.mjs：常见占位符、图标、HTML标签、换行、长度的保守校验；ICU表达式人工审核。
+- locale-analysis.mjs / analyze-locale-cli.mjs：语言加载静态证据，不能替代实际调用跟踪。
+- candidate-artifacts.mjs：暂存发布、文件清单和哈希校验、载荷读取；结果仍不可安装。
+- review-decisions.mjs：草稿身份/清单哈希绑定、批准规则、Claude副本合并。
+- candidate-review.mjs / review-ui.mjs / review-candidate-cli.mjs：审核页面、编辑/搜索/筛选、JSON导入导出。
+- validate-review-cli.mjs：独立校验审核草稿。
+- merge-review-cli.mjs：生成审核合并副本，审查标识及日期写入审计。
+
+后端共24个顶层mjs文件，另有third-party许可文件。当前发现的package.json都位于Cursor候选目录，不是正式应用工程清单；正式构建、依赖锁、类型检查、lint、发行脚本尚未形成。
+Git状态显示主要目录与config.json未跟踪；git diff无输出不能说明项目没有修改。本轮没有提交。
+未读取或导出config.json的私有配置内容，本TXT不包含密钥和账号密码。
+
+================================================================
+四、当前双应用数据与验证事实
+================================================================
+
+Cursor历史读取版本：3.24.12，product.json记录vscodeVersion为1.128.0。
+NLS模块1150，索引消息13530，唯一模块/键12761，重复位置769。
+规则接受唯一键10943，其中91条原译文相同。
+缺失1777，保护标记差异31，原文冲突唯一键10，待处理合计1818。
+约85.75%是唯一键规则接受率，不是页面汉化覆盖率。
+候选引擎范围继承^1.128.0；版本号对应不证明VSIX可加载。
+已有完整性候选参考：project/frontend/candidates/cursor-x54Pcg/。
+当前审核页参考：project/frontend/reviews/cursor-b0P43r/index.html。
+尚未安装语言包、未验收Agent页面、恢复或升级行为。
+
+Claude历史安装标识：Claude_2.31226.1.0_x64__pzs8sxrjxfjjc。
+桌面英文801键，原生简体中文613键，英文中188键没有原生中文。
+桌面候选611条：原生588条、起始词典23条；190条保留英文。
+14条原生ICU表达式需审核，11条原文相同；不据此认定翻译错误。
+前端英文34213键，当前短词候选64条，其余34149条保留英文。
+前端已观察默认语言集合不含中文；本地所检查i18n目录中没有zh-Hans基础、动态、overrides文件。
+静态代码读取spa:locale、i18n-catalogs，并派生三类资源路径；元数据注入方和完整激活方案尚未确定。
+桌面有中文资源并不证明前端中文激活成立；data-cjk-order字体顺序不等于译文加载。
+源候选参考：project/frontend/candidates/claude-k8ZcOH/。
+正确单条Save合并副本参考：project/frontend/candidates/claude-vsyg70/。
+审核页参考：project/frontend/reviews/claude-fxW3dA/index.html。
+所有候选仍不可安装、运行时未验证。
+
+================================================================
+五、审查发现与修改优先级
+================================================================
+
+分级：P0在任何真实应用写入前必须处理；P1下一开发阶段；P2工程化和体验完善。
+这里列的是发现及方案，不表示本轮已修复。
+
+[P0-01] 文件读取大小检查不是严格上限，缺硬超时和目录总量约束。
+位置：candidate-artifacts.mjs:30-40，merge-review-cli.mjs:22-29；类似CLI也使用stat后readFile。
+证据：读取前检查size，随后readFile读取至EOF；如果文件同时增长，可能在读取后才发现变化。目录递归没有文件数、深度、总字节上限。
+方案：统一受限分块读，最多limit+1字节；定义总预算、目录层数及文件数量。I/O放工作进程，由父进程超时终止；不要把Promise.race当作真正取消阻塞I/O。
+验收：增长文件、过深目录、批量小文件、超时任务和worker退出测试。
+
+[P0-02] 并发文件替换及路径链接检查仍存在竞态窗口。
+位置：scanner.mjs:16-24；candidate-artifacts.mjs:16-40、72-87。
+证据：检查路径/链接后再打开；重复校验能发现部分变化，不是原子快照或安全沙箱。
+方案：在用户自有项目内制作受控快照，尽量绑定文件句柄与标识；引入普通用户ACL限制；输入根目录及符号链接策略明确。安装事务不得从网页或任意文件路径发起。
+验收：目录替换、链接替换、版本改变、源文件被应用更新触发时拒绝写入。
+
+[P0-03] 语义审核不能由占位符通过推导。
+证据：历史测试草稿把第一个Actual Size条目改成“保存更改”，技术保护规则可接受，产生claude-ijFKvQ；后续才正确选择Save生成claude-vsyg70。
+问题：字符串结构正确不代表译法正确，审查标识是自由输入，不是人类签名。
+方案：把早期错误副本明确列为测试不采用；增加按原文、key、页面、来源、原因的差异预览，批准时显示完整上下文；自动测试严禁写成真实人工审稿结论。
+验收：Actual Size和Save必须能在预览区分；审批记录可追溯来源；不因“human-approved”字段变可安装。
+
+[P0-04] 当前没有真实安装/恢复事务与应用兼容性门禁。
+证据：所有状态固定applicationVerified=false、installable=false；没有安装器。
+方案：先只验证语言包加载；安装器必须核验源版本、文件指纹、适配规则、备份和授权计划。流程见第九节。
+禁止：未验证直接覆盖WindowsApps、修改可执行文件哈希、改签名、关更新。
+
+[P1-01] Cursor审核合并阻塞理由需要改正。
+位置：cursor-pack.mjs:36-54；review-decisions.mjs合并分支。
+证据：pending.json保存module、key、source和reason；并非没有键映射。真正缺的是完整源快照身份、稳定写回与冲突处理实现。
+方案：保留同版本键映射/源指纹；仅对non-conflict已批准项写入contents[module][key]；更新pending和coverage，冲突键禁止盲写；生成差异与新清单。
+验收：模块相同不同键、相同英文不同语境、__proto__键、重复相同键、冲突键和跨版本草稿。
+
+[P1-02] Claude派生候选应统一报告和审计链。
+位置：review-decisions.mjs合并副本逻辑，merge-review-cli.mjs审计写入。
+证据：资源和review更新了，原report.json随副本保留；多次派生可能继承旧来源计数，approved文件被本轮替换，父链需要明确。
+方案：报告同时保存“基线资源来源”和“当前审核统计”；每次变更包含parentManifestSha256、revisionId、条目差异、已继承审查和本次批准。不可变审计事件追加到新副本，不篡改旧副本。
+验收：连续合并两次，第一次历史仍可查；同值批准与值修改分别统计；报告与review、resource保持一致。
+
+[P1-03] CLI测试名与实际覆盖不相符。
+位置：validate-review-cli.test.mjs:9-30。
+证据：测试没有spawn实际CLI；第一个只检查hash，第二个使用手造latest hash比较，不是实际CLI中途替换。
+方案：保留纯函数测试并重命名；另用node:child_process.execFile/spawn执行CLI，断言退出码、JSON、stderr、参数保护。通过可注入读取函数测试竞态，不依靠随机时序。
+验收：0成功、2输入失败；未批准项合并拒绝；绝对目录与审查人标识分别校验；新增合并CLI集成回归。
+
+[P1-04] 译文保护仍是有限正则，不是完整消息语法验证。
+位置：translation-quality.mjs:2-11。
+证据：HTML标记排序比较，不检测嵌套顺序；只识别部分占位符；ICU全转人工审核；换行/长度仅初步规则。
+方案：对ICU使用成熟解析器比较参数名、类型、复数分支；DOM/rich-text根据目标渲染规则检查合法标签结构，避免为了匹配把标签顺序改变也接受。
+验收：嵌套标签错序、实体、转义百分号、日期/数字参数、复数/选择分支、快捷键和格式代码。
+
+[P1-05] 需要让现有原型连接真实只读链路。
+位置：prototype/app.js:1-12、79-91；当前纯演示state。
+方案：保留演示显著标识；正式UI使用真实Job状态，不复用模拟success。首个真实动作只读scan，显示资源摘要、限制和错误，随后生成候选与审核预览。
+验收：未发现应用、权限失败、未知版本、worker超时均不能显示汉化成功。
+
+[P1-06] 跨候选资源Schema与语义一致性校验需要集中。
+证据：当前有手写结构判断和哈希校验，但哈希只证明符合本清单；清单可被与内容一起重算，不验证来源。
+方案：用Schema库校验manifest/review/report；区分本地草稿完整性与官方适配发布签名。所有IPC、插件、下载文件按同一版本协议校验。
+验收：未知字段政策、重复身份、空manifest、资源计数不一致、超大JSON和变更版本。
+
+[P2-01] 工程脚本、代码风格与复验记录需要可重复。
+证据：正式package.json、依赖锁、TS工程、lint/build入口未形成；既有浏览器验证主要是临时命令；单次test通过无法覆盖正式发行。
+方案：逐模块增量迁移TS，不同时重写所有文件；固定版本和锁文件；配置lint、format、typecheck、test、browser-test；异常路径保持中文提示、结构化错误码。
+
+[P2-02] 候选/审核产物需要索引和保留策略。
+证据：存在多代随机目录，文档引用旧输出；候选与浏览器测试文件同在frontend，尚无发布级artifact索引。
+方案：建立artifact-index，标记candidate/review/test/invalid/superseded，不删除未知产物；正式打包排除研究快照、Claude原文、错误测试候选、草稿隐私和临时日志。
+
+[P2-03] 文档存在历史结论与新状态混杂。
+例：M0文档称Claude扫描/候选未实现，是当时记录；旧报告称Claude只发英文，与当前自带zh-Hans不同；“随更新存活”“零风险”“任意Electron”应降为版本相关条件。
+方案：本TXT作为当前汇总，原文保留为历史；新增资料首页列日期、范围、来源、验证状态与取代关系。不要删除原证据。
+
+[P2-04] 原型存在可见的小问题。
+位置：prototype/app.js:59，Chrome卡片字符串拼接为“Microsoft Google Chrome”。
+方案：正式界面改独立名称映射；浏览器引擎配置切换前保留尚未提交输入；搜索输入避免每字符整页重建，关注IME与焦点。
+这些是代码审查观察，不是本轮重新运行的UI故障复现。
+
+================================================================
+六、产品设计蓝图
+================================================================
+
+产品形态：一个Windows桌面管理程序、一个浏览器插件、共享翻译核心；内部CLI提供自动化接口。
+暂定名称“译界”，只是原型名称，品牌尚未确认。
+
+主菜单：
+1 应用中心：发现应用、版本能力、待适配、启用/恢复。
+2 屏幕翻译：按需整屏、窗口/区域、持续模式、显示方式。
+3 浏览器：连接、当前站点权限、术语共享、网页预览。
+4 术语与审核：搜索、分页/虚拟化、上下文、质量提示、批量生成草稿而非批量盲批准。
+5 翻译引擎：本地/云端、预算、语言、测试请求开关。
+6 恢复与诊断：修改计划、备份、事务状态、版本变化、脱敏导出。
+
+普通用户流程：
+选应用 -> 检测 -> 说明支持页面 -> 预览 -> 关闭目标应用 -> 确认计划 -> 安全执行 -> 实际页面检查 -> 可恢复。
+不支持时明确显示原因，提供屏幕翻译入口，不能静默从汉化切成OCR却报告原生汉化成功。
+
+界面反馈：
+- 权限提示列出实际文件、原因和替代方式，不默认全程管理员运行。
+- “已汉化”只对已验证适配范围使用；可区分候选生成、审核完成、加载成功、页面验收通过。
+- 所有模拟页面保留演示标记；错误、取消、超时和恢复都有真实状态。
+- 深浅色、键盘、读屏、窄屏与常用分辨率测试；颜色和间距沿用原型但非直接复制所有innerHTML结构。
+
+================================================================
+七、技术与多端结构
+================================================================
+
+推荐保留已讨论的融合方案：
+Electron + React + TypeScript：桌面管理界面与主进程协调。
+TypeScript共享核心：术语、翻译任务、缓存、质量检查、资源Schema。
+Node应用适配工作进程：只读探测、候选、打包、受控事务。
+C#/.NET Windows辅助进程：UIA、窗口捕获、多屏坐标、原生覆盖层。
+独立OCR：成熟OCR引擎，接口统一，不预设一定使用Python。
+Chrome/Edge Manifest V3插件：网页取词、段落组织、双语渲染。
+
+选择比较：
+方案一，全部Electron/TS：代码共享好，但部分原生捕获/覆盖能力仍需插件；不应为共享率牺牲原生操作。
+方案二，全部C#/WPF：Windows集成直接，但与浏览器/应用资源处理共享较少。
+选择混合：保持一个管理界面，原生能力作为辅助进程，不再维护第二套WPF设置页。
+
+建议目录（下一阶段方案，未创建）：
+project/frontend/desktop/     React管理界面。
+project/frontend/extension/   浏览器插件。
+project/backend/core/         协议、质量和任务核心。
+project/backend/drivers/      Cursor、Claude等版本化适配器。
+project/backend/windows/      C#辅助进程。
+database/                    本地Schema和迁移，不存凭据。
+utils/                       可复验脚本与CI工具。
+已有backend文件渐进迁移，不突然移动导致命令失效。
+
+通信：
+Electron界面 -> preload受限函数 -> 主进程 -> worker/C#。
+Windows辅助进程优先命名管道，当前用户ACL、消息上限、请求ID、取消、超时。
+插件content script -> service worker -> Native Messaging host -> 翻译核心。
+插件绝不可调用文件改包、命令执行、签名或任意文件读取接口。
+不默认暴露未经授权的localhost HTTP控制端口。
+Native Messaging注册为显式安装动作；Chrome的allowed_origins不能通配；stdout只输出长度前缀JSON，日志stderr。
+官方当前限制host->browser单消息1MB，browser->host 64MiB；项目应设置更小的业务限额，不按官方极限收文本。
+
+Electron安全：
+nodeIntegration关闭、contextIsolation开启、sandbox按可行范围开启；preload暴露最少命令。
+校验IPC发送方与输入Schema，拒绝任意导航、窗口和不受控外部链接。
+应用内容和机器译文都是不可信数据，不能执行代码。
+本地界面CSP明确，不开webSecurity绕过，不为了翻译网页允许任意系统权限。
+
+================================================================
+八、数据模型、翻译质量与实时任务
+================================================================
+
+建议主要模型：
+ApplicationProfile：appId、安装形态、版本、资源指纹、能力列表。
+AdapterManifest：支持范围、规则版本、资源路径、前置条件、兼容测试记录、签名影响。
+TranslationUnit：稳定id、module/key、sourceHash、source、target、语境、保护标记、来源、审核状态、页标签。
+ReviewDraft：候选清单hash、稳定unitId、决定、目标译文、审核上下文。
+CandidateArtifact：schema版本、app、父hash、资源hash、文件清单、审核统计、运行时证据。
+ApplyPlan：具体文件、旧hash、新hash、备份位置、权限、计划有效期。
+Job：jobId、requestId、targetGeneration、状态、取消原因、错误码。
+CaptureBlock：frameId、坐标、原文、置信度、文本源、时间戳。
+
+目标状态机：
+发现 -> 扫描 -> 候选 -> 审核 -> 合并 -> 加载验证 -> 受控应用 -> 页面验收。
+候选完整性、译文审核、应用兼容分别是三个维度，不合并成一个verified。
+草稿全决定不等于全通过；deferred/rejected仍有后续工作。
+
+翻译流水线：
+抽取 -> 去重但保持语境 -> 术语/TM -> 引擎 -> 语法与占位符检查 -> 人工审核 -> 副本合并。
+缓存键至少包含源hash、目标语言、应用/语境、词典版本、引擎/模型版本。
+输出要求明确区分空文本、未识别、拒绝发送、引擎失败、部分返回。
+本地OCR不等于全链路离线；云端文字发送必须可见、可控，失败不自动换供应商。
+
+实时翻译：
+用户选择范围 -> UIA可用则取词，否则捕获/OCR -> 变化检测 -> 合并文本块 -> 缓存/翻译 -> generation检查 -> 覆盖或侧栏。
+只处理变化区域，不承诺当前没有测量的刷新率或准确度。
+滚动、最小化、遮挡、DPI和切换目标都使旧generation失效。
+覆盖层鼠标穿透；编辑译文时进入明确操作模式；查看原文快捷键可配置且检查冲突。
+尝试排除自身捕获，失败切换侧栏或临时隐藏；不能让译文识别成下一轮原文。
+受保护画面、安全桌面、独占全屏和管理权限窗口按实际支持提示，不承诺任意应用。
+
+网页：
+以DOM可见段落为单位，避免改脚本、代码块、输入框与密码内容。
+MutationObserver批处理动态变化；保留原文与译文关系，不重复插入节点。
+站点权限按需，支持撤销；跨源iframe和Shadow DOM按支持范围实现。
+页面不得读API密钥；内容脚本到后台消息校验sender与来源。
+
+================================================================
+九、安装、恢复与安全细节
+================================================================
+
+原则：先原生语言设置/语言包，再资源适配，最后独立明确风险的运行时或asar模式。
+初版不默认修改可执行文件完整性元数据、签名和WindowsApps ACL。
+Electron官方说明启用ASAR完整性后hash缺失或不匹配可终止应用；改包不等于只是替换文案。
+
+事务建议：
+预检 -> 应用退出 -> 版本/源hash复验 -> 备份并校验 -> 暂存新文件 -> 写入计划确认 -> 单步应用记录 -> 启动/页面验证 -> 事务完成。
+若失败：只恢复本事务已更改且符合预期hash的文件；发现应用已升级或第三方改动时停止自动覆盖。
+启动后禁止直接报告“已完成”，需要明确加载与首批页面用例结果。
+目标应用有更新时先标记待适配，不盲目把旧补丁重打到新版本。
+
+隐私：
+截图默认不保存，日志不包含聊天正文、密钥或原始全屏。
+密钥用系统凭据存储，配置仅记录引用；导出诊断单独检查敏感字段。
+候选含第三方原文，发布前筛选授权范围，研究文件不进入发行包。
+账号同步不是首版前提，先导入/导出术语和本机共享；密钥不随词典同步。
+
+================================================================
+十、第三方复用方案与授权
+================================================================
+
+当前实质复用：Microsoft vscode-loc译文；项目已有MIT声明副本并随Cursor候选输出。
+当前后端运行主要使用Node内置模块，没有正式Electron/React/OCR运行依赖。
+下列是候选，不表示已安装或已审计最新版本；引入时记录精确版本、锁文件、来源、许可和漏洞检查。
+
+1. Electron Forge或electron-builder：桌面打包/发行，二选一，避免两套构建配置。
+2. React、Vite、TypeScript：UI与构建；复用成熟组件仍需键盘和权限边界测试。
+3. Zod或Ajv：协议/JSON Schema校验，优先选一种主校验体系。
+4. @formatjs/icu-messageformat-parser：复杂消息结构解析，替代手写完整ICU解析器。
+5. @vscode/vsce：候选VSIX打包验证，不能凭打包成功推导加载成功。
+6. @electron/asar：允许读取的包结构分析；不因库能重打包就自动改官方签名应用。
+7. RapidOCR/ONNX Runtime：OCR候选；模型文件也要授权、hash和硬件验证。
+8. Translumo：区域翻译与去重参考，历史核对Apache-2.0；复用具体代码仍逐文件确认。
+9. LunaTranslator：原位覆盖与多源取词参考，GPL-3.0；商业闭源方案要评估衍生分发义务。
+10. WXT：浏览器扩展构建候选；Native Messaging协议按官方文档。
+11. Playwright：可重复UI测试，保存测试源码、fixture与截图证据，不只用临时命令。
+12. semver：真实引擎范围比较，不只检查版本字符串格式。
+
+不建议首版默认依赖：未公开OneOCR接口作为唯一OCR；已归档/停维护项目作为强基础；DLL/游戏进程hook；未经授权的自动执行适配插件。
+社区仓库的README和star不证明合法可分发、当前兼容或无漏洞。
+MIT/Apache需保留声明；GPL按复用与分发形态履行义务；无许可证代码不直接复制。
+第三方应用EULA和译文分发权利需单独核对，不能仅凭免责声明或“不主张版权”认定合法。
+
+================================================================
+十一、阶段计划与可验证验收
+================================================================
+
+阶段A：工程收敛与候选安全（下一优先级）
+- 统一受限读、Schema、超时worker、派生候选链与差异预览。
+- 修正CLI测试与Cursor合并理由，隔离不采用的测试产物。
+- 建立正式项目脚本、锁文件、TS逐步迁移、可重复浏览器测试。
+验收：正常、异常、大小限制、竞态、错误版本、无批准项、多次派生、CLI退出码。
+
+阶段B：双应用首批真实体验
+- Cursor：补键审核、生成VSIX、独立profile验证语言包加载、设置和Agent常用操作。
+- Claude：定位language/catalog实际链路，验证桌面原生语言入口；前端尚未知范围独立标注。
+- 准备备份、恢复、版本检测与受控授权计划，先不直接操作受限安装目录。
+验收：每应用指定版本和页面，真实中文截图/DOM、点击、输入不被改写、恢复后状态；没有支持的区域必须列出。
+
+阶段C：桌面接入只读引擎
+- React界面接真实worker扫描/候选/审核/任务；原型演示与正式任务隔离。
+- UIA/捕获原生模块小范围验证，错误可定位、任务可取消。
+验收：无应用、权限拒绝、worker崩溃、未知版本、取消、重启恢复任务记录。
+
+阶段D：屏幕翻译最小真实闭环
+- 先按需窗口/区域与整屏，随后持续变化翻译。
+- 接一个本地OCR及一个明确选择的翻译服务；逐步增加本地MT。
+验收：识别结果、译文质量、原位/侧栏、多DPI、多屏、遮挡/切换、无过期译文、隐私开关。
+性能：在记录硬件、屏幕与样本条件后测端到端延迟、P50/P95、CPU/GPU/内存、请求次数和成本；不在测量前定宣传数字。
+
+阶段E：Chrome/Edge互通
+- Manifest V3插件，当前页/划词/双语；Native host与桌面共享术语。
+验收：配对、来源限制、权限撤销、断连、超限消息、动态页面、iframe边界；插件不能发起应用写入。
+
+阶段F：后续扩展
+- 更多应用适配、Android/iOS分享翻译、自托管同步、音频字幕。
+- 各平台能力分别验证，不承诺手机与Windows覆盖完全同等。
+
+首版交付标准：
+能安装桌面产品；双应用各有明确已验证页面；真实窗口/区域按需翻译；可恢复；可诊断；说明当前限制和数据发送范围。
+未达成以上，不命名为“完整专业汉化发布版”。
+
+================================================================
+十二、资料整理索引
+================================================================
+
+现有12份项目文档（保留原文作为阶段证据）：
+01 调研报告-桌面应用汉化与实时翻译.md：技术谱系和40+项目历史调研。
+02 混合架构与首版范围.md：Electron/TS管理界面+C#原生辅助，原型范围。
+03 原型设计与使用.md：演示入口、视觉、交互和边界。
+04 只读扫描器.md：CLI与退出码、只读资源限制。
+05 M0扫描验证结果.md：初始Cursor资源和指纹，历史未完成项已经部分过时。
+06 双应用首批范围.md：Cursor/Claude首批页面。
+07 Cursor候选语言包验证.md：NLS、接受率、待审核统计。
+08 原生中文复用验证.md：Claude桌面中文和Cursor引擎字段。
+09 Claude语言加载链路.md：字体与语言分离、静态加载函数。
+10 Claude语言加载诊断.md：模块hash、默认语言和路径。
+11 Claude前端资源覆盖检查.md：基础、动态、overrides资源盘点。
+12 阶段审查与接续.md：最新审核和Claude副本合并验证、历史失败说明。
+
+6个原始脚本：
+research/gh_search.ps1、gh_search2.ps1、gh_batch3.ps1、gh_batch4.ps1、fetch_readmes.ps1、fetch_readmes2.ps1。
+脚本可帮助追溯检索方法；截断的README、限流结果与命令失败不能当完整源码审计。
+
+18份README快照：
+Bakaxh__CoC2-Language-Mod.md
+Edwardxlai__easyread.md
+good9527__Claude-Desktop-Chinese.md
+hanmin0822__MisakaTranslator.md
+HIllya51__LunaTranslator.md
+hlmd__postman-chinese-injector.md
+Hon-Lu__OverTranslate.md
+javaht__claude-desktop-zh-cn.md
+Jyy1529__claude-desktop_win-zh_cn.md
+liuqiaokun__awesome-screen-translation.md
+OneMoreGres__ScreenTranslator.md
+polang233__cursor-language-pack.md
+pot-app__pot-desktop.md
+qqxpee__antigravity2-cn.md
+ramjke__Translumo.md
+vibepm666__cursor-localization-zh.md
+wh000wh000__pen-dev-i18n.md
+Yaozhu666__Codex-Chinese.md
+
+重点仓库用途（不重新确认star/活跃度）：
+https://github.com/javaht/claude-desktop-zh-cn  Claude适配和恢复参考。
+https://github.com/Jyy1529/claude-desktop_win-zh_cn  可见文本与内部标识分离。
+https://github.com/polang233/cursor-language-pack  Cursor语言包工程参考。
+https://github.com/microsoft/vscode-loc  微软语言资源来源。
+https://github.com/hlmd/postman-chinese-injector  菜单、资源及DOM分层参考。
+https://github.com/wh000wh000/pen-dev-i18n  运行时与JSON CLI参考，调试权限须独立核实。
+https://github.com/RapidAI/RapidOCR  OCR候选。
+https://github.com/ramjke/Translumo  区域实时翻译参考。
+https://github.com/HIllya51/LunaTranslator  覆盖层、多源取词参考。
+https://github.com/xushengfeng/eSearch  截图及OCR交互参考。
+
+本轮读取官方文档：
+https://www.electronjs.org/docs/latest/tutorial/security
+https://www.electronjs.org/docs/latest/tutorial/asar-integrity
+https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging
+
+历史官方资料入口：
+https://code.visualstudio.com/api/references/contribution-points#contributes.localizations
+https://nodejs.org/api/fs.html
+https://learn.microsoft.com/en-us/windows/apps/develop/media-authoring-processing/screen-capture
+https://learn.microsoft.com/en-us/windows/win32/winauto/entry-uiauto-win32
+https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/ui-automation-textpattern-overview
+https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowdisplayaffinity
+
+================================================================
+十三、复验操作与本次交付边界
+================================================================
+
+在项目根目录运行：
+node --test project/backend/*.test.mjs
+本轮结果：52通过、0失败、0跳过。
+
+只读扫描帮助：
+node project/backend/scan-cli.mjs --help
+
+生成审核页：
+node project/backend/review-candidate-cli.mjs "候选绝对目录"
+
+审核草稿校验：
+node project/backend/validate-review-cli.mjs "候选绝对目录" "草稿绝对路径"
+
+合并Claude副本：
+node project/backend/merge-review-cli.mjs "候选绝对目录" "草稿绝对路径" reviewer-id
+以上合并要求至少一条批准项；仅创建项目内候选，不安装应用。实际使用前核对当前代码版本。
+
+本轮仅新增本TXT汇总，不自动修复上述发现，不搬移、清理或公开分发旧资料。
+本轮未安装VSIX、未改变Cursor/Claude配置、未调用翻译服务、未做真实OCR与界面加载验收。
+本轮没有读出/导出私有配置、密钥或用户对话，没有Git提交或推送。
+
+最终建议：保留已有资源与测试资产，把下一轮工作集中在P0文件/审计边界、P1真实CLI集成测试、Cursor稳定写回映射和Claude语言加载验证。先形成可用且可恢复的双应用小范围闭环，再扩展实时翻译与浏览器，避免把“通用多端”提前变成同时维护多个未完成入口。

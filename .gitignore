@@ -1,18 +1,21 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# ---------------------------------------------------------------------------
+# 第三方内容：候选、审核产物与备份里含目标应用（Claude / Cursor）的原始英文
+# 资源、以及带用户审核标识的草稿。这些属第三方内容，一律不入库。
+# 目录本身按需在本地存在，不入库不表示可以删除。
+# ---------------------------------------------------------------------------
+project/frontend/candidates/
+project/frontend/reviews/
+project/backups/
+research/readmes/
 
-# Other files and folders
-.settings/
+# 本机 MCP 服务器清单，含绝对路径，与本项目无关
+config.json
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# 运行期产物
+*.log
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# 编辑器与操作系统
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
