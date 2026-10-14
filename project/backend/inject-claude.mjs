@@ -97,8 +97,10 @@ export function planInjection({ target, candidateDirectory, files }) {
     candidateDirectory,
     catalogValue: catalogValue(target, files.revision),
     preload: preloadSource(catalogValue(target, files.revision), target),
-    // 只拦目标语言的三个路径：任何其他 locale 的请求原样放行，不制造额外停顿面。
-    patterns: files.entries.map(entry => `*${entry.pathname}*`),
+    // 拦截范围放宽到整个 /i18n/：既要应答目标语言，也要看清应用究竟请求了哪个语言。
+    // 请求路径只可能由 k_(locale) 产生，所以"应用请求了 zh-Hans"本身就是
+    // O_() 返回了 zh-Hans 的直接证据。真正应答的仍只有 paths 里这三个。
+    patterns: ['*/i18n/*'],
     paths: files.entries.map(entry => entry.pathname),
     entries: files.entries.map(({ relative, url, bytes, sha256: digest }) => ({ relative, url, bytes, sha256: digest })),
     revision: files.revision,
@@ -151,22 +153,27 @@ export async function applyInjection(session, plan, files) {
   const bodies = new Map(files.entries.map(entry => [entry.pathname, entry.base64]));
   if (plan.paths.some(pathname => !bodies.has(pathname))) throw new Error('注入计划与资源载荷不匹配');
   const previous = await readStoredLocale(session);
+  // 观测记录：应用请求了哪些 i18n 路径、其中哪些由我们应答。
+  const requested = new Map();
+  const fulfilled = new Map();
 
   await session.send('Page.enable');
   const off = session.on('Fetch.requestPaused', params => {
     const requestId = params.requestId;
-    const reply = error => session.send('Fetch.continueRequest', { requestId }).catch(() => {});
+    const reply = () => session.send('Fetch.continueRequest', { requestId }).catch(() => {});
     try {
       const pathname = new URL(params.request.url).pathname;
+      requested.set(pathname, (requested.get(pathname) ?? 0) + 1);
       const body = bodies.get(pathname);
       if (!body) { reply(); return; }
+      fulfilled.set(pathname, (fulfilled.get(pathname) ?? 0) + 1);
       session.send('Fetch.fulfillRequest', {
         requestId,
         responseCode: 200,
         responsePhrase: 'OK',
         responseHeaders: JSON_HEADERS,
         body
-      }).catch(() => reply());
+      }).catch(reply);
     } catch {
       // 处理器自身异常必须放行请求，否则页面会卡在 paused 状态。
       reply();
@@ -178,6 +185,24 @@ export async function applyInjection(session, plan, files) {
 
   return {
     previous,
+    /**
+     * 判断注入是否真的生效，只看一件事：应用有没有请求目标语言的基础目录。
+     * 请求 en-US 说明 O_() 没返回目标语言，注入未生效。
+     */
+    observations() {
+      const requestedPaths = Object.fromEntries([...requested].sort());
+      const fulfilledPaths = Object.fromEntries([...fulfilled].sort());
+      const basePath = plan.paths[0];
+      const targetRequested = (fulfilled.get(basePath) ?? 0) > 0;
+      return {
+        targetRequested,
+        requestedPaths,
+        fulfilledPaths,
+        verdict: targetRequested
+          ? `生效：应用已请求 ${basePath}`
+          : `未生效：应用没有请求 ${basePath}${Object.keys(requestedPaths).length ? `，实际请求了 ${Object.keys(requestedPaths).join('、')}` : '，且整个 /i18n/ 下没有任何请求'}`
+      };
+    },
     async dispose() {
       off();
       await session.send('Page.removeScriptToEvaluateOnNewDocument', { identifier }).catch(() => {});

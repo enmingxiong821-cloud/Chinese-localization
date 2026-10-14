@@ -504,13 +504,15 @@ BUILTIN\Administrators:(I)(CI)(RX)
 ### 12.6 尚未验证 / 下一步
 
 1. **未在真实 Claude Desktop 上跑过。** 端到端证据来自复刻门禁的 fixture；真实 bundle 的门禁函数已逐字核对一致，但真实应用的加载时序、CSP、`file://` 或自定义协议下的 `localStorage` 可用性均未实测。
-2. **必须由你启动应用**：加 `--remote-debugging-port` 需要重启 Claude Desktop，而当前会话就跑在它里面，我不能自己重启。
-3. **候选内容仍是英文原文**（`translated: 0`）。注入链路通了，但注入进去的是骨架，**页面上不会出现中文**。下一步的真正瓶颈回到了译文本身：34,213 键按高频页面分批。
+2. ~~**必须由你启动应用**：加 `--remote-debugging-port` 需要重启 Claude Desktop，而当前会话就跑在它里面，我不能自己重启。~~ **已作废，见 12.9**：应用直接拒绝带调试开关启动，重启也没用。
+3. **译文本身是真正的瓶颈**：34,213 键按高频页面分批。骨架候选值全是英文原文，导致「注入成功」与「注入失败」在界面上完全一样——这个可判定性缺陷已由探针候选 + 观测报告解决，见 12.8。但探针只回答「链路通没通」，`translated` 仍是 0。
 4. `--lang=zh-CN`（层 A）与托盘/菜单栏（层 B）的现状仍未取证，属 M0/M1。
 5. 双命名（`zh-CN` vs `zh-Hans`）未统一。
 6. `scanner.mjs` 与 `resource-enum.mjs` 的枚举能力未合并。
 
 ### 12.7 自用操作顺序（需你执行）
+
+> ⚠️ **本节已作废，见 12.9。** 下面第 2 步的命令会被应用拒绝启动（`refusing to start — a debugging or network-override switch is present`）。保留原文仅为记录当时的方案。
 
 ```bash
 :: 1. 关闭 Claude Desktop
@@ -525,14 +527,92 @@ node project/backend/inject-cli.mjs probe --port 9222
 
 ```bash
 :: 4. 先看计划（不连接、不写入）
-node project/backend/inject-cli.mjs plan --candidate "C:\Users\Caspian6610\Desktop\xin\project\frontend\candidates\claude-nPKgFO"
+node project/backend/inject-cli.mjs plan --candidate "C:\Users\Caspian6610\Desktop\xin\project\frontend\candidates\claude-ty8YI2"
 ```
 
 ```bash
 :: 5. 注入并常驻；Ctrl-C 退出即还原
-node project/backend/inject-cli.mjs apply --port 9222 --candidate "C:\Users\Caspian6610\Desktop\xin\project\frontend\candidates\claude-nPKgFO"
+node project/backend/inject-cli.mjs apply --port 9222 --candidate "C:\Users\Caspian6610\Desktop\xin\project\frontend\candidates\claude-ty8YI2"
 ```
 
-预期：注入后前端 UI 走 `zh-Hans` 资源；**但骨架值全是英文原文，界面不会变中文**——这一步验证的是"链路通了、语言选对了"，不是"汉化完成了"。回退：`Ctrl-C`，或直接关掉带调试参数的那个进程。
+`claude-ty8YI2` 是探针候选（见 12.8），值带 `[ZH] ` 前缀。三条判定线，从强到弱：
 
-第七节第 1 条的约束仍然成立：调试端口是本方案唯一的本地攻击面，只绑 `127.0.0.1`、仅自用、非常驻。**不要把它做成开机自启的常驻调试端口。**
+1. **终端里的观测报告**（`apply` 重载后自动打印，Ctrl-C 时再打一次）：
+   `verdict` 为 `生效：应用已请求 /i18n/zh-Hans.json`，即证明 `O_()` 返回了 `zh-Hans`。
+   请求路径只可能由 `k_(locale)` 产生，这是直接证据，不依赖肉眼看界面。
+2. **界面出现 `[ZH] ` 前缀**：同时证明语言切了、值也确实来自本文件。
+3. **仍显示纯英文**：说明注入没生效，对照观测报告里 `requestedPaths` 实际请求了哪个语言。
+
+三条补充：探针不是译文（`translated: 0`）；前缀没出现的地方说明该文本硬编码在 bundle 里、
+压根不走 catalog；还原是 `Ctrl-C`，或直接关掉带调试参数的那个进程。
+
+### 12.8 可判定性修正：探针候选 + 观测报告
+
+骨架候选有个致命缺陷：三万多条值全是英文原文，注入成功与失败在界面上**完全一样**。
+你跑完 `apply` 看到英文，无法区分「链路没通」和「译文没填」。
+
+两条互补的修正：
+
+**一是观测报告（零风险，直接证据）。** 拦截范围从目标语言三个路径放宽到整个 `*/i18n/*`，
+记录应用实际请求了哪些 i18n 路径。理由：请求路径只可能由 `k_(locale)` 产生，而 `k_` 的入参
+就是 `O_()` 的返回值——所以「应用请求了 `/i18n/zh-Hans.json`」本身就是 `O_()` 返回了
+`zh-Hans` 的**直接证据**，不需要看界面。真正应答的仍只有计划里那三个路径。
+`applyInjection` 返回的句柄带 `observations()`，`inject-cli.mjs apply` 在重载后等
+`OBSERVE_MS`（20 秒）并把结论打印出来；Ctrl-C 退出时再打一次最终结果。
+
+**二是探针候选（`probe` 动词）。** 结构同骨架，但给**疑似展示文本**加 `[ZH] ` 前缀
+（`PROBE_MARKER`），界面出现前缀即同时证明语言切了、值也确实来自本文件。
+
+前缀必须**加得保守**。应用里有大量值不是展示文本（枚举、路由、比较键），改了会破坏行为，
+所以判据只标记「看起来是展示文本」的：长度 2–120、不以 URL / 绝对路径 / `#` / `.` 开头、
+不是纯数字与分隔符、且**含空格或以大写字母开头**。最后一条是关键——`asc`、`left`、`en-US`、
+`dark` 这类既无空格又小写开头的，多半是枚举或路由，一律跳过。宁可漏标几个按钮，
+不可改坏一处逻辑。
+
+实测（真实安装）：34,262 条里标记 30,615、跳过 3,647。跳过的那批正是枚举、ID 与短标识。
+
+`counts.translated` 恒为 0：标记不是译文。这个候选只能证明链路，**不能当汉化成果**，
+也已在设计上不可安装（`installable: false`）。
+
+### 12.9 C1 作废——调试开关黑名单实测
+
+**这一节推翻 12.4–12.7 的前提。**
+
+实测：带 `--remote-debugging-port=127.0.0.1:9222` 直接启动 `<app>\claude.exe`，进程 1 秒内退出，stderr 只有一行：
+
+```
+Claude: refusing to start — a debugging or network-override switch is present on the command line.
+```
+
+`app.asar` 主进程入口处的守卫：
+
+```js
+var VZ=["remote-debugging-port","remote-debugging-pipe","ignore-certificate-errors","host-resolver-rules","host-rules","disable-web-security","log-net-log","net-log-capture-mode","ssl-key-log-file","renderer-cmd-prefix","utility-cmd-prefix","gpu-launcher","zygote-cmd-prefix","ppapi-plugin-launcher","nacl-loader-cmd-prefix","browser-subprocess-path"];
+function HZ(e){return e.replace(/^(?:--|-|\/)/,"").toLowerCase().split("=",1)[0]}
+function UZ(e){return e.some(e=>{let t=HZ(e);return VZ.some(v=>t.startsWith(v))})}
+
+if(UZ(process.argv)&&!QZ()){
+  try{ p.default.writeSync(2,`Claude: refusing to start — a debugging or network-override switch is present on the command line.\n`) }catch{}
+  process.exit(1)
+}
+```
+
+`--remote-debugging-port` 是名单第一条。`--user-data-dir` **不在**名单里（`user-data-dir` 前缀不匹配任何一项），所以这次拒绝由调试端口触发，与隔离 profile 无关。
+
+**逃生门是带令牌的。** `QZ()` 要求同时存在 `CLAUDE_CDP_AUTH` 与 `CLAUDE_USER_DATA_DIR`，令牌是 `${时间戳}.${base64(userData 路径)}.${校验段}` 三段式，且内嵌路径必须与 `CLAUDE_USER_DATA_DIR` 逐字相同。这是 Anthropic 自己留的正规调试通道，我们签不出令牌。其后 `qZ(process.env)` 还会把 `CLAUDE_USER_DATA_DIR`、`SSLKEYLOGFILE` 从环境里删掉——应用是刻意在防这条路。
+
+**守卫有缺口，但不走。** `--inspect` 不在名单里（`inspect` 在 asar 中命中 0 次）。但用它拿到的是主进程任意代码执行，**权力比名单禁止的每一项都大**，正是仓库指令「不绕过安全策略」要拦的动作，所以不采纳、不建议。`--proxy-server` 同样不在名单里，但它拦不到应用自身的资源协议，指望不上。
+
+**三道门，全部是设计挡的：**
+
+| 路线 | 门 | 证据 |
+| --- | --- | --- |
+| C2 资源落盘 | 安装目录 ACL | `BUILTIN\Administrators:(I)(CI)(RX)`，提权也只读 |
+| 第二实例 / 隔离 profile | 签名构建忽略自定义数据目录 | asar：`CLAUDE_USER_DATA_DIR is set and signed builds ignore it`，并 `delete e.CLAUDE_USER_DATA_DIR` |
+| C1 运行时注入 | 命令行调试开关黑名单 + 令牌 | 本节实测与守卫代码 |
+
+**附带更正：** 子进程命令行显示真实 userData 是 `%LOCALAPPDATA%\Claude-3p`，不是文档先前写的 `%APPDATA%\Claude`；Electron 44.4.3。
+
+**所以层 C 目前没有合规落地路径。** 三道门禁（包里无 `zh-Hans`、`i18n-catalogs` meta 恒空、11 语言白名单无中文）唯一能被同时解决的杠杆是运行时注入，而它锁在令牌后面。12.4–12.6 的实现与验证代码本身仍然正确，将来若有通道打开可直接复用；但**首版闭环不能建在 12.7 那条路上**。
+
+12.7 的操作顺序作废；调试端口不再是「唯一的本地攻击面」，而是压根不可用。第七节第 1 条的其余约束（不破坏签名、不关闭更新、不持久化提权、不绕过安全策略）继续成立。

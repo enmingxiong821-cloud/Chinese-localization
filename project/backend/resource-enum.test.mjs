@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { BASE_LOCALE, buildLocaleSkeleton, enumerateLocaleResources, FRONTEND_DIR, SHELL_DIR } from './resource-enum.mjs';
+import { BASE_LOCALE, buildLocaleSkeleton, buildProbeCandidate, enumerateLocaleResources, FRONTEND_DIR, looksLikeDisplayText, PROBE_MARKER, pseudolocalize, SHELL_DIR } from './resource-enum.mjs';
 
 const MANIFEST = '<Package><Identity Name="Claude" Version="1.0.0.0" Publisher="CN=X" ProcessorArchitecture="x64" /></Package>';
 const EN = { a: 'Alpha', b: 'Beta', c: 'Gamma' };
@@ -129,4 +129,73 @@ test('枚举与骨架生成全程只读', async () => {
   await buildLocaleSkeleton(root, 'zh-Hans');
   assert.deepEqual(await snapshot(), before);
   assert.equal(await stat(path.join(root, 'app', 'resources', 'app.asar')).then(info => info.isFile()), true);
+});
+
+// ---------------------------------------------------------------- 伪本地化探针
+
+test('展示文本判据偏保守：枚举、路由、URL、日期一律不动', () => {
+  for (const text of ['Send message', 'Settings', 'Delete 3 items']) assert.equal(looksLikeDisplayText(text), true, text);
+  // 无空格且不以大写开头 —— 多半是枚举值或比较键，改了会破坏行为。
+  for (const text of ['asc', 'left', 'en-US', 'zh-Hans', 'dark', 'small']) assert.equal(looksLikeDisplayText(text), false, text);
+  for (const text of ['https://claude.ai/x', '/v1/messages', '#anchor', '.json', '2024-01-01', '12:30', '  ', 'a', 'x'.repeat(121)]) {
+    assert.equal(looksLikeDisplayText(text), false, text);
+  }
+  for (const value of [null, 42, true, undefined, {}, ['Send message']]) assert.equal(looksLikeDisplayText(value), false, String(value));
+  // 前后空白不该让它漏掉：去掉空白后仍以大写开头。
+  assert.equal(looksLikeDisplayText('  Send  '), true);
+});
+
+test('标记只加在展示文本上，非字符串值原样保留', () => {
+  const result = pseudolocalize({ title: 'Send message', dir: 'asc', count: 3, flag: true, empty: null, url: 'https://a/b' });
+  assert.equal(result.values.title, `${PROBE_MARKER}Send message`);
+  assert.equal(result.values.dir, 'asc');
+  assert.equal(result.values.count, 3);
+  assert.equal(result.values.flag, true);
+  assert.equal(result.values.empty, null);
+  assert.equal(result.values.url, 'https://a/b');
+  assert.equal(result.marked, 1);
+  assert.equal(result.skipped, 5);
+});
+
+test('__proto__ 键走 defineProperty，不污染原型', () => {
+  const input = JSON.parse('{"__proto__": "Send message", "constructor": "Delete all"}');
+  const result = pseudolocalize(input);
+  assert.equal(Object.getPrototypeOf(result.values), Object.prototype);
+  assert.equal(Object.getOwnPropertyDescriptor(result.values, '__proto__').value, `${PROBE_MARKER}Send message`);
+  assert.equal(Object.getOwnPropertyDescriptor(result.values, 'constructor').value, `${PROBE_MARKER}Delete all`);
+  assert.equal(result.marked, 2);
+});
+
+test('自定义标记生效，空标记拒绝', () => {
+  assert.equal(pseudolocalize({ a: 'Send message' }, '¶ ').values.a, '¶ Send message');
+  assert.throws(() => pseudolocalize({ a: 'Send message' }, ''), /标记不能为空/);
+});
+
+test('探针候选结构同骨架、带标记、translated仍为零', async () => {
+  const root = await packageFixture();
+  const probe = await buildProbeCandidate(root, 'zh-Hans');
+  assert.equal(probe.marker, PROBE_MARKER);
+  assert.deepEqual(probe.counts, {
+    mainKeys: 3, dynamicKeys: 1, overridesKeys: 0, translated: 0, marked: 4, skipped: 0
+  });
+  const main = JSON.parse(probe.files[`${FRONTEND_DIR}/zh-Hans.json`]);
+  assert.deepEqual(main, { a: `${PROBE_MARKER}Alpha`, b: `${PROBE_MARKER}Beta`, c: `${PROBE_MARKER}Gamma` });
+  assert.deepEqual(JSON.parse(probe.files[`${FRONTEND_DIR}/dynamic/zh-Hans.json`]), { d: `${PROBE_MARKER}Delta` });
+  assert.equal(probe.files[`${FRONTEND_DIR}/zh-Hans.overrides.json`], '{}\n');
+  // 标记不是译文：这个候选只能证明链路通，不能当汉化成果。
+  assert.equal(probe.counts.translated, 0);
+  assert.equal(probe.files[`${FRONTEND_DIR}/zh-Hans.json`], json(main));
+});
+
+test('探针候选与骨架候选的键集完全相同', async () => {
+  const root = await packageFixture();
+  const skeleton = await buildLocaleSkeleton(root, 'zh-Hans');
+  const probe = await buildProbeCandidate(root, 'zh-Hans');
+  for (const relative of [`${FRONTEND_DIR}/zh-Hans.json`, `${FRONTEND_DIR}/dynamic/zh-Hans.json`]) {
+    assert.deepEqual(
+      Object.keys(JSON.parse(probe.files[relative])),
+      Object.keys(JSON.parse(skeleton.files[relative])),
+      relative
+    );
+  }
 });

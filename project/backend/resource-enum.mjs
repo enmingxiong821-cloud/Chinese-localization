@@ -15,6 +15,44 @@ export const SHELL_DIR = 'resources';
 export const FRONTEND_DIR = 'resources/ion-dist/i18n';
 export const BASE_LOCALE = 'en-US';
 
+/** 伪本地化标记。出现即证明该字符串来自注入的资源文件，而非 bundle 里的英文。 */
+export const PROBE_MARKER = '[ZH] ';
+
+/** URL、绝对路径、锚点、扩展名开头的一律不动。 */
+const NOT_DISPLAY_PREFIX = /^(https?:\/\/|\/|[A-Za-z]:[\\/]|#|\.)/;
+/** 纯数字、日期、分隔符。 */
+const NOT_DISPLAY_ONLY = /^[\d\s.,:%/-]+$/;
+
+/**
+ * 保守判据：只标记"看起来是展示文本"的值。
+ * 既没有空格、又不以大写字母开头的（`asc`、`left`、`en-US`）多半是枚举、路由或比较键，
+ * 改了会破坏行为，一律跳过。宁可漏标几个按钮，不可改坏一处逻辑。
+ */
+export function looksLikeDisplayText(value) {
+  if (typeof value !== 'string') return false;
+  const text = value.trim();
+  if (text.length < 2 || text.length > 120) return false;
+  if (NOT_DISPLAY_PREFIX.test(text) || NOT_DISPLAY_ONLY.test(text)) return false;
+  if (!/\s/.test(text) && !/^[A-Z]/.test(text)) return false;
+  return true;
+}
+
+/**
+ * 给疑似展示文本加标记前缀，其余值原样保留（包括非字符串值）。
+ * `__proto__` 这类键名必须用 defineProperty：直接赋值会改到原型上。
+ */
+export function pseudolocalize(values, marker = PROBE_MARKER) {
+  if (typeof marker !== 'string' || marker.length === 0) throw new Error('标记不能为空');
+  const output = {};
+  let marked = 0;
+  for (const [key, value] of Object.entries(values)) {
+    const next = looksLikeDisplayText(value) ? marker + value : value;
+    if (next !== value) marked += 1;
+    Object.defineProperty(output, key, { value: next, enumerable: true, writable: true, configurable: true });
+  }
+  return { values: output, marked, skipped: Object.keys(values).length - marked };
+}
+
 /** 顶层 *.json；不递归。资源目录里混着 asar、vhdx、exe，递归枚举会被预算直接打回。 */
 async function listTopLevelJsonFiles(root, relativeDir) {
   const entries = await readdir(path.join(root, ...relativeDir.split('/')), { withFileTypes: true });
@@ -177,5 +215,36 @@ export async function buildLocaleSkeleton(packageRoot, target = 'zh-Hans') {
     counts: { mainKeys: mainKeys.length, dynamicKeys: dynamicKeys.length, overridesKeys: 0, translated: 0 },
     base: { mainPath: report.frontend.basePath, baseKeySetSha256: report.frontend.baseKeySetSha256, dynamicPath },
     report
+  };
+}
+
+/**
+ * 伪本地化探针候选：结构同骨架，但给疑似展示文本加标记前缀。
+ *
+ * 存在的理由是骨架有个致命缺陷——值全是英文，注入成功与失败在界面上完全一样，
+ * 看到英文页面根本无法判断是链路没通还是译文没填。打了标记之后，
+ * 界面出现标记即同时证明「locale 切到了目标语言」和「值确实来自本文件」。
+ * 顺带暴露哪些界面文本压根不走 catalog（硬编码在 bundle 里）。
+ *
+ * counts.translated 恒为 0：标记不是译文，这个候选不能当汉化成果。
+ */
+export async function buildProbeCandidate(packageRoot, target = 'zh-Hans', marker = PROBE_MARKER) {
+  const skeleton = await buildLocaleSkeleton(packageRoot, target);
+  const main = pseudolocalize(JSON.parse(skeleton.files[`${FRONTEND_DIR}/${target}.json`]), marker);
+  const dynamic = pseudolocalize(JSON.parse(skeleton.files[`${FRONTEND_DIR}/dynamic/${target}.json`]), marker);
+  return {
+    marker,
+    files: {
+      [`${FRONTEND_DIR}/${target}.json`]: JSON.stringify(main.values, null, 2) + '\n',
+      [`${FRONTEND_DIR}/${target}.overrides.json`]: '{}\n',
+      [`${FRONTEND_DIR}/dynamic/${target}.json`]: JSON.stringify(dynamic.values, null, 2) + '\n'
+    },
+    counts: {
+      ...skeleton.counts,
+      marked: main.marked + dynamic.marked,
+      skipped: main.skipped + dynamic.skipped,
+      translated: 0
+    },
+    base: skeleton.base
   };
 }

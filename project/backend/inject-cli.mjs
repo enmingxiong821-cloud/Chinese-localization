@@ -6,7 +6,8 @@
  *   apply   --port N --candidate PATH [--locale L] [--match S] [--no-reload]
  *   revert  --port N [--match S]
  *
- * apply 会常驻并把注入保持到进程退出；Ctrl-C 会精确还原用户级 locale 键值。
+ * apply 会常驻并把注入保持到进程退出；Ctrl-C 会精确还原用户级 locale 键值，
+ * 并打印本轮应用实际请求过的 i18n 路径（判断注入是否生效的直接证据）。
  * 本工具不修改安装目录、asar、exe、签名或任何全局配置。
  */
 import path from 'node:path';
@@ -20,7 +21,8 @@ const USAGE = [
   '  node project/backend/inject-cli.mjs apply  --port 9222 --candidate "候选绝对目录" [--locale zh-Hans] [--match URL子串] [--no-reload]',
   '  node project/backend/inject-cli.mjs revert --port 9222 [--match URL子串]',
   '',
-  '调试端口只允许环回地址。apply 需常驻，Ctrl-C 退出并还原。'
+  '调试端口只允许环回地址。apply 需常驻，Ctrl-C 退出并还原。',
+  'apply 会在重载后等待并打印观测结果：应用是否真的请求了目标语言的 i18n 资源。'
 ].join('\n');
 
 function parseArguments(argv) {
@@ -41,6 +43,22 @@ function parseArguments(argv) {
 function fail(message, code = 2) {
   console.error(JSON.stringify({ error: message, installFilesModified: false }, null, 2));
   process.exitCode = code;
+}
+
+/**
+ * 重载之后应用才会发出 /i18n/ 请求，观测要等一小会儿。
+ * 等待超时不当作失败——只是"还没看到"，把实际看到的路径原样报出来更有用。
+ */
+const OBSERVE_MS = 20000;
+
+async function observe(handle, timeoutMs = OBSERVE_MS) {
+  const deadline = Date.now() + timeoutMs;
+  let latest = handle.observations();
+  while (!latest.targetRequested && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 250));
+    latest = handle.observations();
+  }
+  return latest;
 }
 
 const [verb, ...rest] = process.argv.slice(2);
@@ -95,16 +113,31 @@ if (!verb || verb === '--help') {
                   note: '注入只在本次进程存活期间有效。按 Ctrl-C 退出并还原。'
                 }, null, 2));
 
+                console.log('注入已生效，进程常驻中。Ctrl-C 退出并还原。');
+
                 // 常驻：Fetch 拦截与预加载脚本都依附于这条 CDP 会话，进程退出即全部撤销。
                 const stop = async () => {
                   process.off('SIGINT', stop);
+                  // 先取观测再 dispose：撤销之后这两个 Map 就没有意义了。
+                  const final = handle.observations();
                   const result = await revertInjection(session, handle).catch(error => ({ restored: false, error: error.message }));
-                  console.log(JSON.stringify({ reverted: result.restored, previous: result.previous ?? handle.previous }, null, 2));
+                  console.log(JSON.stringify({ reverted: result.restored, previous: result.previous ?? handle.previous, observations: final }, null, 2));
                   session.close();
                   process.exit(0);
                 };
                 process.on('SIGINT', stop);
-                console.log('注入已生效，进程常驻中。Ctrl-C 退出。');
+
+                // 自报证据：应用请求了目标语言的基础目录，只能出自 O_() 返回了目标语言。
+                const observations = await observe(handle);
+                console.log(JSON.stringify({
+                  observations,
+                  waitedMs: OBSERVE_MS,
+                  ...(observations.targetRequested ? {} : {
+                    hint: options.reload
+                      ? '应用已重载却没有请求目标语言：多半是门禁没走到 O_()，或页面目标选错了。'
+                      : '本次未重载应用，请求尚未发生；手动重载页面后再看本轮末尾的报告。'
+                  })
+                }, null, 2));
               }
             }
           }

@@ -86,7 +86,8 @@ test('注入计划只拦目标语言的三个路径且标注不落盘', async ()
   assert.equal(plan.persistent, false);
   assert.equal(plan.installFilesModified, false);
   assert.deepEqual(plan.paths, ['/i18n/zh-Hans.json', '/i18n/zh-Hans.overrides.json', '/i18n/dynamic/zh-Hans.json']);
-  assert.deepEqual(plan.patterns, ['*/i18n/zh-Hans.json*', '*/i18n/zh-Hans.overrides.json*', '*/i18n/dynamic/zh-Hans.json*']);
+  // 拦截范围是整个 /i18n/：只有看得见全部请求，才能判断应用到底选了哪个语言。
+  assert.deepEqual(plan.patterns, ['*/i18n/*']);
   assert.match(plan.catalogValue, /^zh-Hans:[a-f0-9]{8}\.[a-f0-9]{8}\.[a-f0-9]{8}$/);
   // 修订号取自三份内容：任一文件改动都必须改变它。
   const other = await publishCandidate(root, 'claude-', 'claude', {
@@ -230,6 +231,15 @@ test('端到端：注入前后 locale 解析链的真实行为', { skip }, async
   assert.match(injected.fetched.base.body, /zh-base/);
   assert.match(injected.fetched.dynamic.body, /zh-dyn/);
   assert.match(injected.fetched.overrides.body, /zh-ovr/);
+
+  // 自报证据：注入器观察到的请求，就是 O_() 选择结果的直接体现。
+  const observations = handle.observations();
+  assert.equal(observations.targetRequested, true, observations.verdict);
+  assert.deepEqual(Object.keys(observations.fulfilledPaths).sort(), [
+    '/i18n/dynamic/zh-Hans.json', '/i18n/zh-Hans.json', '/i18n/zh-Hans.overrides.json'
+  ]);
+  // 未注入时应用请求的是 en-US；注入后不该再出现这个请求。
+  assert.equal(observations.requestedPaths['/i18n/en-US.json'], undefined);
 
   // ③ 还原：会话注入撤掉，localStorage 回到注入前（原本没有 → 移除）。
   const reverted = await revertInjection(session, handle);

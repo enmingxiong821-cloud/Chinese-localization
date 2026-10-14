@@ -1,12 +1,15 @@
 /** 语言资源枚举 CLI：report 只读输出；skeleton 生成结构骨架并发布为候选，不安装。 */
 import path from 'node:path';
 import { publishCandidate } from './candidate-artifacts.mjs';
-import { buildLocaleSkeleton, enumerateLocaleResources } from './resource-enum.mjs';
+import { buildLocaleSkeleton, buildProbeCandidate, enumerateLocaleResources } from './resource-enum.mjs';
 
 const USAGE = [
   '用法：',
   '  node project/backend/locale-enum-cli.mjs report   "安装包根" [目标语言，默认 zh-Hans]',
-  '  node project/backend/locale-enum-cli.mjs skeleton "安装包根" "候选父目录" [目标语言，默认 zh-Hans]'
+  '  node project/backend/locale-enum-cli.mjs skeleton "安装包根" "候选父目录" [目标语言，默认 zh-Hans]',
+  '  node project/backend/locale-enum-cli.mjs probe    "安装包根" "候选父目录" [目标语言，默认 zh-Hans]',
+  '',
+  'skeleton 值保留英文原文；probe 额外给疑似展示文本加标记前缀，用于验证注入链路是否生效。'
 ].join('\n');
 
 function usage() {
@@ -43,6 +46,29 @@ if (verb === '--help') {
         installable: false,
         applicationVerified: false,
         next: '骨架值全部是英文原文，需按高频页面分批填写译文并走审核链路。'
+      }, null, 2));
+    } catch (error) {
+      console.error(JSON.stringify({ error: error.code || error.message, installable: false }));
+      process.exitCode = 2;
+    }
+  }
+} else if (verb === 'probe') {
+  if (rest.length < 2 || rest.length > 3 || !path.isAbsolute(rest[0]) || !path.isAbsolute(rest[1])) usage();
+  else {
+    try {
+      const probe = await buildProbeCandidate(rest[0], rest[2]);
+      const directory = await publishCandidate(rest[1], 'claude-', 'claude', probe.files);
+      console.log(JSON.stringify({
+        candidate: directory,
+        target: rest[2] ?? 'zh-Hans',
+        marker: probe.marker,
+        counts: probe.counts,
+        base: probe.base,
+        // 标记不是译文：这个候选只用来判断注入链路通没通。
+        translated: 0,
+        installable: false,
+        applicationVerified: false,
+        next: `重启 Claude 并带上 --remote-debugging-port=127.0.0.1:<端口>，然后 apply 本候选；界面出现「${probe.marker}」前缀即证明注入生效。`
       }, null, 2));
     } catch (error) {
       console.error(JSON.stringify({ error: error.code || error.message, installable: false }));
