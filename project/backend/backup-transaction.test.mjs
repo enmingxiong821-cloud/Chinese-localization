@@ -126,6 +126,17 @@ test('非法目标路径与非法备份根目录拒绝', async () => {
   await assert.rejects(createBackup(await planBackup(root, [PATCHED]), 'relative-dir'), /绝对路径/);
 });
 
+test('清单里的目标路径被改成越界路径时拒绝', async () => {
+  const root = await packageFixture();
+  const result = await createBackup(await planBackup(root, [PATCHED]), await backupRoot());
+  const manifestPath = path.join(result.directory, 'backup-manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  manifest.targets = ['../../outside.json'];
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+  await assert.rejects(verifyBackup(result.directory), /目标路径无效/);
+  await assert.rejects(buildRestorePlan(result.directory, await readInstallIdentity(root)), /目标路径无效/);
+});
+
 test('同一目标可备份到同一根目录下的多个独立目录', async () => {
   const destination = await backupRoot();
   const first = await createBackup(await planBackup(await packageFixture(), [PATCHED]), destination);

@@ -46,6 +46,8 @@ async function readManifest(directory) {
   try { manifest = JSON.parse((await readBoundedFile(path.join(directory, MANIFEST), 4 * 1024 * 1024)).toString('utf8')); } catch { throw new Error('备份清单缺失或JSON无效'); }
   if (manifest.schemaVersion !== 1 || manifest.kind !== 'install-backup') throw new Error('备份清单版本或类型不匹配');
   if (!Array.isArray(manifest.targets) || !Array.isArray(manifest.files)) throw new Error('备份清单结构无效');
+  // targets 会被 buildRestorePlan 直接拼进 appRoot 下取指纹，未经校验就能读到安装目录之外
+  if (manifest.targets.length > MAX_TARGETS || manifest.targets.some(relative => !safeRelative(relative))) throw new Error('备份清单目标路径无效');
   if (manifest.files.some(file => !safeRelative(file.path) || !['present', 'absent'].includes(file.kind))) throw new Error('备份清单条目无效');
   return manifest;
 }

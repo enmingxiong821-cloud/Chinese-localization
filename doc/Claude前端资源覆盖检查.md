@@ -1,5 +1,7 @@
 # Claude前端资源覆盖检查
 
+> ⚠️ 本文「`i18n-catalogs` 注入方未知」已作废：该注入点在官方包中是死代码，实际注入由本项目的 HTML 补丁提供，见 `Claude桌面汉化技术设计与首版闭环.md` §12.2。
+
 ## 资源事实
 
 本机Claude安装：`C:\Program Files\WindowsApps\Claude_2.31226.1.0_x64__pzs8sxrjxfjjc\app`。
@@ -8,8 +10,8 @@
 | --- | --- | ---: |
 | `resources/en-US.json` | 存在 | 801 |
 | `resources/zh-Hans.json` | 存在 | 613 |
-| `resources/ion-dist/i18n/en-US.json` | 存在 | 34,213 |
-| `resources/ion-dist/i18n/de-DE.json` | 存在 | 34,213 |
+| `resources/ion-dist/i18n/en-US.json` | 存在 | 34,954 |
+| `resources/ion-dist/i18n/de-DE.json` | 存在 | 34,954 |
 | `resources/ion-dist/i18n/de-DE.overrides.json` | 存在 | 150 |
 | `resources/ion-dist/i18n/dynamic/de-DE.json` | 存在 | 49 |
 | `resources/ion-dist/i18n/zh-Hans.json` | 缺失 | — |

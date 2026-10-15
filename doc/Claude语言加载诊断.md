@@ -1,5 +1,7 @@
 # Claude 语言加载诊断
 
+> 状态：静态证据（模块字节数与 SHA-256、默认语言列表、资源路径）仍有效；「中文被 11 语言白名单挡死、需额外激活」的结论已被 `Claude桌面汉化技术设计与首版闭环.md` §11/§12 取代。保留证据，结论以该文为准。
+
 ## 实际模块
 
 目标：Claude Windows 安装目录中的 `resources/ion-dist/assets/v1/shared-50-Bmc9oUMm.js`。

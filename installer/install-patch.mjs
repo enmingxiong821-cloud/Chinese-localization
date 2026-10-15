@@ -54,7 +54,54 @@ export function patchHtml(source, inject = HTML_INJECT) {
 }
 
 const LOCALE_KEY = /"locale"/g;
-const LOCALE_VALUE = /^"locale"\s*:\s*("(?:[^"\\]|\\.)*")/;
+
+/**
+ * 从 text[at] 起读一个完整的 JSON 值，返回 [原文, 结束下标]；读不出来返回 null。
+ * 不能只认带引号的字符串：真实的 locale 可能是 null，认不出就会走到「插入」分支而造出重复键。
+ */
+function readJsonValue(text, at) {
+  const rest = text.slice(at);
+  const string = /^"(?:[^"\\]|\\.)*"/.exec(rest);
+  if (string) return [string[0], at + string[0].length];
+  const literal = /^(?:-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)/.exec(rest);
+  if (literal) return [literal[0], at + literal[0].length];
+  if (rest[0] !== '{' && rest[0] !== '[') return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < rest.length; i += 1) {
+    const ch = rest[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{' || ch === '[') depth += 1;
+    else if (ch === '}' || ch === ']') {
+      depth -= 1;
+      if (depth === 0) return [rest.slice(0, i + 1), at + i + 1];
+    }
+  }
+  return null;
+}
+
+/** 找到最外层那个 locale 字段的值区间。返回 null 表示没有这个字段。 */
+function locateLocaleValue(text) {
+  LOCALE_KEY.lastIndex = 0;
+  let match;
+  while ((match = LOCALE_KEY.exec(text)) !== null) {
+    if (!isTopLevel(text, match.index)) continue;
+    const after = match.index + match[0].length;
+    const colon = /^\s*:\s*/.exec(text.slice(after));
+    if (!colon) continue;
+    const at = after + colon[0].length;
+    const found = readJsonValue(text, at);
+    if (found) return { at, end: found[1], raw: found[0] };
+  }
+  return null;
+}
 
 /** 判断某个下标是否处于最外层对象里（深度 1），避免改到嵌套的同名字段。 */
 function isTopLevel(text, index) {
@@ -77,13 +124,8 @@ function isTopLevel(text, index) {
 }
 
 export function readLocale(text) {
-  LOCALE_KEY.lastIndex = 0;
-  let match;
-  while ((match = LOCALE_KEY.exec(text)) !== null) {
-    const field = LOCALE_VALUE.exec(text.slice(match.index));
-    if (field && isTopLevel(text, match.index)) return JSON.parse(field[1]);
-  }
-  return null;
+  const found = locateLocaleValue(text);
+  return found ? JSON.parse(found.raw) : null;
 }
 
 /**
@@ -93,17 +135,12 @@ export function readLocale(text) {
  */
 export function setLocale(text, value) {
   const encoded = JSON.stringify(value);
-  LOCALE_KEY.lastIndex = 0;
-  let match;
-  while ((match = LOCALE_KEY.exec(text)) !== null) {
-    const field = LOCALE_VALUE.exec(text.slice(match.index));
-    if (!field || !isTopLevel(text, match.index)) continue;
-    const start = match.index + field[0].length - field[1].length;
-    const end = start + field[1].length;
+  const found = locateLocaleValue(text);
+  if (found) {
     return {
-      text: `${text.slice(0, start)}${encoded}${text.slice(end)}`,
+      text: `${text.slice(0, found.at)}${encoded}${text.slice(found.end)}`,
       mode: 'replaced',
-      previous: JSON.parse(field[1])
+      previous: JSON.parse(found.raw)
     };
   }
   const brace = text.indexOf('{');

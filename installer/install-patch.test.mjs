@@ -101,6 +101,19 @@ test('setLocale 字段缺失时在开头补一个', () => {
   assert.deepEqual(JSON.parse(result.text), { locale: 'zh-Hans', x: 1 });
 });
 
+test('setLocale 把 null 值就地替换掉，不造出重复键', () => {
+  const source = '{\n  "locale": null,\n  "x": 1\n}';
+  const result = setLocale(source, 'zh-Hans');
+  assert.equal(result.mode, 'replaced');
+  assert.deepEqual(JSON.parse(result.text), { locale: 'zh-Hans', x: 1 });
+  assert.equal(result.text.match(/"locale"/g).length, 1, '重复键会让 JSON.parse 取到旧值，语言设置静默失效');
+});
+
+test('readLocale 读得出非字符串的 locale', () => {
+  assert.equal(readLocale('{ "locale": null }'), null);
+  assert.equal(readLocale('{ "locale": 1 }'), 1);
+});
+
 test('setLocale 字段缺失且空对象时不留下多余逗号', () => {
   const result = setLocale('{}', 'zh-Hans');
   assert.equal(result.text, '{"locale":"zh-Hans"}');

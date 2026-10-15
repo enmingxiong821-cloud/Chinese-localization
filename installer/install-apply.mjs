@@ -94,7 +94,12 @@ export function copyPackage(sourceRoot, destinationRoot, { log = () => {} } = {}
   return destinationRoot;
 }
 
-/** 用新版官方文件覆盖旧副本，保留 profile/（用户数据）不动。补丁产物随后全部重建。 */
+/**
+ * 用新版官方文件刷新旧副本，保留 profile/（用户数据）不动。补丁产物随后全部重建。
+ * 必须用 /MIR（=/E /PURGE）而不是 /E：前端资源文件名带构建哈希，升级后旧文件不在新官方包里，
+ * 只覆盖不清理的话，上一版那个已打补丁的 shared-*.js 会留在副本里，白名单锚点变成 4 处而卡住安装。
+ * package/ 里只有官方副本与补丁产物，没有用户数据（profile/ 与 revert/ 是它的同级目录）。
+ */
 export function refreshPackage(sourceRoot, destinationRoot, { log = () => {}, reason = 'updated' } = {}) {
   log(reason === 'no-record'
     ? '没有可用的安装记录，正在用官方文件重建副本…'
@@ -102,7 +107,7 @@ export function refreshPackage(sourceRoot, destinationRoot, { log = () => {}, re
   const result = spawnSync('robocopy.exe', [
     toWindows(sourceRoot),
     toWindows(destinationRoot),
-    '/E',
+    '/MIR',
     '/COPY:DAT',
     '/DCOPY:DAT',
     '/R:1',
@@ -132,8 +137,11 @@ export function applyPatches({ packageRoot, baseCatalog, overrides, revertRoot, 
   const { catalog, applied } = buildCatalog(baseParsed, overrides);
   const zhPath = path.join(appRoot, ...REL_I18N_DIR.split('/'), `${TARGET_LOCALE}.json`);
   const zhText = serializeCatalog(catalog);
+  // 官方若某天自带 zh-Hans.json，先备份：还原时它是官方原件，不能当补丁产物删掉
+  const catalogPreexisted = existsSync(zhPath);
+  if (catalogPreexisted) backupFile(packageRoot, relativeOf(appRoot, zhPath), revertRoot);
   writeFileAtomic(zhPath, zhText);
-  added.push(relativeOf(appRoot, zhPath));
+  if (!catalogPreexisted) added.push(relativeOf(appRoot, zhPath));
   patched[relativeOf(appRoot, zhPath)] = digest(Buffer.from(zhText, 'utf8'));
   log(`已生成中文词典 ${TARGET_LOCALE}.json（覆盖 ${applied} 条）`);
 
@@ -255,7 +263,8 @@ export function writeLauncher(launcherPath) {
 }
 
 export function writeReadme(readmePath, template, values) {
-  const text = template.replace(/\{\{(\w+)\}\}/g, (whole, key) => (key in values ? String(values[key]) : whole));
+  // 键是中文，不能用 \w（只含 [A-Za-z0-9_]），否则占位符一个都替换不掉
+  const text = template.replace(/\{\{([^{}]+)\}\}/g, (whole, key) => (key in values ? String(values[key]) : whole));
   writeFileAtomic(readmePath, text);
   return readmePath;
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { applyPatches, backupFile, writeFileAtomic, writeLauncher, writeLocale } from './install-apply.mjs';
+import { applyPatches, backupFile, refreshPackage, writeFileAtomic, writeLauncher, writeLocale, writeReadme } from './install-apply.mjs';
 import { findWhitelistTargets, inspectHtmlFiles, measureCoverage } from './install-plan.mjs';
 import { removeAddedCatalog, restoreFiles, restoreLocale } from './install-restore.mjs';
 
@@ -195,6 +195,62 @@ test('restoreLocale 只摘掉 locale 字段，应用自己写的键原样保留'
   assert.equal(result.restored, true);
   assert.equal(result.reason, 'removed-key');
   assert.deepEqual(JSON.parse(readFileSync(configPath, 'utf8')), { theme: 'dark' });
+});
+
+test('writeReadme 替换中文占位符', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-rm-'));
+  const readme = path.join(root, '说明.txt');
+  writeReadme(readme, '装在这里：\n    {{安装目录}}\n共 {{译文条数}} 条\n未知：{{没有这个键}}', {
+    安装目录: 'C:\\x',
+    译文条数: 33897
+  });
+  const text = readFileSync(readme, 'utf8');
+  assert.equal(text.includes('{{安装目录}}'), false, '占位符没被替换，用户会看到字面量');
+  assert.equal(text.includes('C:\\x'), true);
+  assert.equal(text.includes('33897'), true);
+  assert.equal(text.includes('{{没有这个键}}'), true, '模板里有而没传值的键保留原样');
+});
+
+test('refreshPackage 清掉上一版残留的补丁文件，副本与官方包保持一致', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-rf-'));
+  const source = path.join(root, 'source');
+  const dest = path.join(root, 'dest');
+  const assets = 'app/resources/ion-dist/assets/v1';
+  mkdirSync(path.join(source, 'app'), { recursive: true });
+  mkdirSync(path.join(source, assets), { recursive: true });
+  writeFileSync(path.join(source, 'app', 'claude.exe'), 'exe');
+  writeFileSync(path.join(source, assets, 'shared-50-NEW.js'), 'var w_=1;');
+
+  mkdirSync(path.join(dest, 'app'), { recursive: true });
+  mkdirSync(path.join(dest, assets), { recursive: true });
+  writeFileSync(path.join(dest, 'app', 'claude.exe'), 'exe');
+  writeFileSync(path.join(dest, assets, 'shared-50-OLD.js'), 'var w_=["zh-Hans"];');
+  writeFileSync(path.join(dest, 'app', 'zh-Hans.json'), '{}');
+
+  refreshPackage(source, dest);
+
+  assert.equal(existsSync(path.join(dest, assets, 'shared-50-NEW.js')), true);
+  assert.equal(existsSync(path.join(dest, assets, 'shared-50-OLD.js')), false,
+    '上一版的 shared-*.js 必须被清掉，否则白名单锚点会变成 4 处');
+  assert.equal(existsSync(path.join(dest, 'app', 'zh-Hans.json')), false,
+    '上一版的词典必须被清掉，补丁产物随后重建');
+});
+
+test('官方若自带 zh-Hans.json，还原时写回原件而不是当补丁产物删掉', () => {
+  const fixture = makePackage();
+  const official = path.join(fixture.ion, 'i18n', 'zh-Hans.json');
+  writeFileSync(official, '{"official":"词典"}');
+  applyPatches(patchOptions(fixture));
+  assert.notEqual(readFileSync(official, 'utf8'), '{"official":"词典"}', '补丁应覆盖官方词典');
+
+  restoreFiles({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot });
+  assert.equal(readFileSync(official, 'utf8'), '{"official":"词典"}');
+  assert.equal(
+    removeAddedCatalog({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot }),
+    false,
+    '官方自带的词典不能删，否则「逐字节还原」不成立'
+  );
+  assert.equal(existsSync(official), true);
 });
 
 test('writeFileAtomic 落盘内容与预期一致且不留临时文件', () => {

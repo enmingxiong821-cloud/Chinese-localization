@@ -7,8 +7,9 @@ import { publishCandidate } from './candidate-artifacts.mjs';
 import { createCandidateReview, renderReview } from './candidate-review.mjs';
 
 test('报告转义资源内容且不包含可执行脚本', () => {
-  const html = renderReview('cursor', [{ title: '<img src=x>', summary: '&', rows: [{ key: '"x"', source: '<script>alert(1)</script>', target: '<svg onload=x>', reason: 'missing' }] }]);
+  const html = renderReview('cursor', [{ title: '<img src=x>', summary: '&', rows: [{ key: '"x"', displaySource: '<script>alert(1)</script>', proposedTarget: '<svg onload=x>', reason: 'missing' }] }]);
   assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+  assert.ok(html.includes('&lt;svg onload=x&gt;'), '候选译文列必须真的渲染出内容，字段名写错会静默变空');
   assert.ok(!html.includes('<script>'));
   assert.ok(html.includes("default-src 'none'"));
 });

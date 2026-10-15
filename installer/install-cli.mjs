@@ -6,6 +6,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { sha256 } from '../project/backend/safe-io.mjs';
 import {
+  APP_DIR,
   MIN_COVERAGE,
   README_NAME,
   TARGET_LOCALE,
@@ -26,6 +27,7 @@ import {
   digest,
   ensureDirectory,
   refreshPackage,
+  removeShortcuts,
   writeLauncher,
   writeLocale,
   writeReadme,
@@ -115,6 +117,9 @@ async function install() {
   ensureDirectory(paths.revertRoot);
   ensureDirectory(paths.profileRoot);
 
+  // 结构门禁先对官方源做一次，且在任何改动之前：官方前端若改了结构，副本与备份都必须原样留着
+  gateWhitelist(path.join(source.packageRoot, APP_DIR));
+
   let pristine = false;
   if (!existsSync(paths.packageRoot)) {
     copyPackage(source.packageRoot, paths.packageRoot, { log });
@@ -126,10 +131,11 @@ async function install() {
     });
     pristine = true;
   }
-  if (pristine) rmSync(path.join(paths.revertRoot, 'files'), { recursive: true, force: true });
 
   const gate = gateWhitelist(paths.appRoot);
   if (gate.alreadyLocalized) log('官方前端已自带中文语言项，跳过白名单改写');
+  // 门禁过了才丢弃旧备份：门禁失败时副本没改、备份也还在，此时才能如实说「本次不安装」
+  if (pristine) rmSync(path.join(paths.revertRoot, 'files'), { recursive: true, force: true });
 
   const { patched, added } = applyPatches({
     packageRoot: paths.packageRoot,
@@ -219,11 +225,24 @@ function readCurrentLocale(configPath) {
 async function restore() {
   const paths = resolvePaths();
   const state = readState(paths.statePath);
+  // 副本目录不在了，快捷方式和状态文件仍在安装目录里，得照样清掉：
+  // 否则桌面上会留一个指向空目录的图标，重装时还被旧状态误导。
   if (!existsSync(paths.packageRoot)) {
-    fail(`副本目录不存在：${paths.packageRoot}`, 1);
+    const shortcuts = state?.shortcuts?.length ? removeShortcuts(state.shortcuts, { log }) : 0;
+    if (existsSync(paths.statePath)) rmSync(paths.statePath, { force: true });
+    fail(`副本目录不存在：${paths.packageRoot}`
+      + (shortcuts ? `\n已清理快捷方式 ${shortcuts} 个与安装状态文件。` : ''), 1);
     return;
   }
   const result = restoreAll({ paths, state, log });
+  const missing = result.missing ?? [];
+  if (missing.length) {
+    log(`\n还原不完整：${result.restored} 个原件已写回，${missing.length} 个因副本目录已不存在而无法写回。`);
+    for (const relative of missing) log(`- ${relative}`);
+    log(`如需彻底清除，直接删除整个目录：${paths.installRoot}`);
+    fail('还有原件没能还原', 1);
+    return;
+  }
   log(`\n还原完成：写回原件 ${result.restored} 个`
     + `${result.catalogRemoved ? '、删除中文词典' : ''}`
     + `${result.locale.restored ? '、副本语言设置还原' : ''}`

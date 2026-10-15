@@ -38,12 +38,21 @@ export function restoreFiles({ packageRoot, revertRoot, log = () => {} }) {
   return { restored, missing };
 }
 
-/** 删掉安装时新增的词典文件（原件里本来没有它）。 */
-export function removeAddedCatalog({ packageRoot, log = () => {} }) {
-  const file = path.join(packageRoot, 'app', ...REL_I18N_DIR.split('/'), `${TARGET_LOCALE}.json`);
+/**
+ * 删掉安装时新增的词典文件（原件里本来没有它）。
+ * 官方若自带同名词典，它在 revert/files 里有备份、restoreFiles 已经写回去了，这里必须跳过删除。
+ */
+export function removeAddedCatalog({ packageRoot, revertRoot, log = () => {} }) {
+  // 这个相对路径要跟 backupFile 用的一致（相对包根，带 app/ 前缀），否则找不到备份
+  const relative = `app/${REL_I18N_DIR}/${TARGET_LOCALE}.json`;
+  const file = path.join(packageRoot, ...relative.split('/'));
   if (!existsSync(file)) return false;
+  if (revertRoot && existsSync(path.join(revertRoot, 'files', ...relative.split('/')))) {
+    log(`${relative} 是官方原件，已由备份写回`);
+    return false;
+  }
   rmSync(file, { force: true });
-  log(`已删除 ${REL_I18N_DIR}/${TARGET_LOCALE}.json`);
+  log(`已删除 ${relative}`);
   return true;
 }
 
@@ -90,7 +99,11 @@ export function restoreLocale({ configPath, revertRoot, log = () => {} }) {
 
 export function restoreAll({ paths, state, log = () => {} }) {
   const files = restoreFiles({ packageRoot: paths.packageRoot, revertRoot: paths.revertRoot, log });
-  const catalogRemoved = removeAddedCatalog({ packageRoot: paths.packageRoot, log });
+  const catalogRemoved = removeAddedCatalog({
+    packageRoot: paths.packageRoot,
+    revertRoot: paths.revertRoot,
+    log
+  });
   const locale = restoreLocale({ configPath: paths.configPath, revertRoot: paths.revertRoot, log });
   const shortcuts = state?.shortcuts?.length ? removeShortcuts(state.shortcuts, { log }) : 0;
   if (existsSync(paths.statePath)) rmSync(paths.statePath, { force: true });
