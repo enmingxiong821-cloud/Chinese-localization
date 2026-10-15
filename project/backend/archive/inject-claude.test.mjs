@@ -131,6 +131,16 @@ async function startStaticServer(root) {
   return { server, port: server.address().port, origin: `http://127.0.0.1:${server.address().port}` };
 }
 
+/** 结束浏览器整棵进程树：只 kill 启动进程会留下仍持有 stderr 管道的子进程，Node 便永不退出。 */
+function killTree(child) {
+  if (!child.pid) return;
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+  } else {
+    child.kill();
+  }
+}
+
 /** 起 headless 浏览器并要求它自行选端口（--remote-debugging-port=0），从 stderr 读回实际端口。 */
 function launchBrowser(profileDirectory) {
   return new Promise((resolve, reject) => {
@@ -140,7 +150,7 @@ function launchBrowser(profileDirectory) {
       '--remote-debugging-port=0', `--user-data-dir=${profileDirectory}`, 'about:blank'
     ], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
     let stderr = '';
-    const timer = setTimeout(() => { child.kill(); reject(new Error('浏览器未在 20 秒内报告调试地址')); }, 20000);
+    const timer = setTimeout(() => { killTree(child); reject(new Error('浏览器未在 20 秒内报告调试地址')); }, 20000);
     child.stderr.on('data', chunk => {
       stderr += String(chunk);
       const match = /DevTools listening on (ws:\/\/\S+)/.exec(stderr);
@@ -172,7 +182,11 @@ async function navigateAndRead(session, url) {
   return waitForGate(session);
 }
 
-const skip = BROWSERS ? false : '本机未找到 Chrome 或 Edge，跳过端到端验证';
+// 这两个用例会真开一个 headless 浏览器；留在默认跑里会让 `node --test` 依赖本机浏览器，
+// 且浏览器进程句柄会使测试进程退不出。深度验证按需启用：CDP_E2E=1 node --test
+const skip = !BROWSERS
+  ? '本机未找到 Chrome 或 Edge，跳过端到端验证'
+  : process.env.CDP_E2E ? false : '默认跳过真实浏览器验证，需要时置 CDP_E2E=1';
 
 test('端到端：注入前后 locale 解析链的真实行为', { skip }, async t => {
   const webRoot = await mkdtemp(path.join(tmpdir(), 'inject-web-'));
@@ -195,8 +209,9 @@ test('端到端：注入前后 locale 解析链的真实行为', { skip }, async
   let session;
   let handle;
   t.after(async () => {
+    // 先杀浏览器再关连接：反过来的话关闭握手等不到对端应答，测试子进程会一直挂住不退出。
+    killTree(browser.child);
     if (session) session.close();
-    if (browser.child.pid) spawn('taskkill', ['/pid', String(browser.child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
     await new Promise(resolve => server.close(resolve));
   });
 
@@ -272,8 +287,9 @@ test('端到端：注入前已有的 spa:locale 会被精确还原', { skip }, a
   let session;
   let handle;
   t.after(async () => {
+    // 先杀浏览器再关连接：反过来的话关闭握手等不到对端应答，测试子进程会一直挂住不退出。
+    killTree(browser.child);
     if (session) session.close();
-    if (browser.child.pid) spawn('taskkill', ['/pid', String(browser.child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
     await new Promise(resolve => server.close(resolve));
   });
 
