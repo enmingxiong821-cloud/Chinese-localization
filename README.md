@@ -120,10 +120,11 @@ CDP_E2E=1 node --test --test-force-exit
 发布附件直接由 `git archive` 从提交内容生成，只含运行所需的最小闭合，不夹带文档与归档：
 
 ```bash
-git archive --format=zip -o Claude汉化.zip HEAD README.md LICENSE installer project/backend/safe-io.mjs project/backend/install-identity.mjs
+git archive --format=zip -o Claude汉化.zip HEAD README.md LICENSE installer project/backend ':(exclude)project/backend/archive'
 ```
 
 解压后双击 `installer\安装.cmd` 即可；包内的 `installer/*.test.mjs` 也能就地 `node --test`。
+`project/backend/archive/` 是冻结的早期工具链，安装器用不到，别打进去。
 
 ## 目录
 
