@@ -9,7 +9,7 @@
 | `会话记录/<会话 id>/` | 约 24 MB | 同一会话派生的子代理记录（96 个文件） |
 | `安装器-v1.1.zip` | 约 1.1 MB | `installer/` 的离线快照，12 个文件，解压后双击 `安装.cmd` 即可 |
 
-会话记录取自 `%USERPROFILE%\.claude\projects\C--Users-Caspian6610-Desktop-xin\`，原位置仍在，这里是一份副本。
+会话记录取自 `%USERPROFILE%\.claude\projects\<项目路径slug>\`，原位置仍在，这里是一份副本。
 
 ## 边界
 

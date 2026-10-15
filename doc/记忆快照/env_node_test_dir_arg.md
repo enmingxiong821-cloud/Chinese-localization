@@ -8,7 +8,7 @@ metadata:
   modified: 2026-10-15T10:07:19.931Z
 ---
 
-在 `C:\Users\Caspian6610\Desktop\xin` 跑测试，**只能用 `node --test`（不带参数）**。
+在本项目工作区跑测试，**只能用 `node --test`（不带参数）**。
 
 Node v24.18.0 + Git Bash 下，`node --test installer` 与 `node --test installer/` 都会报
 `test at installer:1:1 ✖ installer` —— 目录参数被当成文件路径处理。不带参数时会递归自动发现，
