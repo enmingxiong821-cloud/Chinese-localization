@@ -2,6 +2,21 @@
 
 Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Desktop**。
 
+## 给使用者：下载与安装
+
+1. **下载**：到 [Releases](https://github.com/enmingxiong821-cloud/Chinese-localization/releases/latest)
+   下载最新的 `Claude汉化-vX.Y.Z.zip`，解压到任意目录即可（里面就是工具本身，不含 Claude）。
+2. **装 Node.js**：需要 [Node.js LTS](https://nodejs.org/)（18 以上）。没装的话双击时会直接提示你装。
+3. **双击 `installer\安装.cmd`**。安装器自动定位官方 Claude Desktop → 复制一份独立副本到
+   `%LOCALAPPDATA%\Claude-zh\` → 打入中文 → 建好桌面与开始菜单快捷方式。全程无需管理员权限。
+4. **用新出现的快捷方式启动**副本，首次登录一次，进主界面即是中文。
+
+官方安装目录、官方配置与官方数据**全程未被改动**；副本与官方版各有独立的用户数据与单实例锁，
+**可以同时运行互不干扰**。
+
+**还原**：`node installer/install-cli.mjs restore`（删补丁与快捷方式），或直接删掉
+`%LOCALAPPDATA%\Claude-zh` 整个目录（连同副本一起清掉）。两种都不影响官方版。
+
 ## 现状
 
 层 C（前端 SPA，34,954 键 + 动态词典 49 键）的中文**已完整落地并装机验收**，主词典键覆盖率
@@ -66,7 +81,7 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
   `--user-data-dir`，已在用）；不走「挂调试端口注入」（`--remote-debugging-port` 在 asar 的
   命令行黑名单里，进程 1 秒内 `exit(1)`）。
 
-## 安装与还原
+## 命令行用法
 
 ```bash
 node installer/install-cli.mjs install
@@ -99,6 +114,16 @@ CDP_E2E=1 node --test --test-force-exit
 
 `--test-force-exit` 是这条深度路径必需的：浏览器进程句柄会让测试进程退不出（该 flag 需要 Node 22 以上；
 默认那条命令不依赖它，Node 18 也能跑）。
+
+## 发版打包
+
+发布附件直接由 `git archive` 从提交内容生成，只含运行所需的最小闭合，不夹带文档与归档：
+
+```bash
+git archive --format=zip -o Claude汉化.zip HEAD README.md LICENSE installer project/backend/safe-io.mjs project/backend/install-identity.mjs
+```
+
+解压后双击 `installer\安装.cmd` 即可；包内的 `installer/*.test.mjs` 也能就地 `node --test`。
 
 ## 目录
 
