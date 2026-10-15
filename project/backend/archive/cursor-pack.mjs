@@ -1,5 +1,5 @@
 /** 按模块及键映射候选语言资源；不修改应用、不打包VSIX、不执行扩展。 */
-import { readResourceSet } from './scanner.mjs';
+import { readResourceSet } from '../scanner.mjs';
 import { validateTranslation } from './translation-quality.mjs';
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);

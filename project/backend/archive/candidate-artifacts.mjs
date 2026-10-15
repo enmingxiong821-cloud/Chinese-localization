@@ -1,7 +1,7 @@
 /** 候选目录完整性清单；校验完整性不代表兼容性或允许安装。 */
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { assertRealDirectory, listRegularFiles, readBoundedFile, safeRelative, sha256 } from './safe-io.mjs';
+import { assertRealDirectory, listRegularFiles, readBoundedFile, safeRelative, sha256 } from '../safe-io.mjs';
 
 const MANIFEST = 'candidate-integrity.json';
 const STATUS = 'candidate-status.json';

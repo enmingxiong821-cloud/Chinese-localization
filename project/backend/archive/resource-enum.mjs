@@ -4,8 +4,8 @@
  */
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { hashFile, readBoundedFile, sha256 } from './safe-io.mjs';
-import { locateAppRoot } from './scanner.mjs';
+import { hashFile, readBoundedFile, sha256 } from '../safe-io.mjs';
+import { locateAppRoot } from '../scanner.mjs';
 
 const MAX_FILE_BYTES = 32 * 1024 * 1024;
 const MAX_LOCALE_FILES = 256;

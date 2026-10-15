@@ -1,7 +1,7 @@
 /** 备份事务 CLI：plan/create/verify 三个动作从不写入安装目录，restore-plan 只产出计划。 */
 import path from 'node:path';
 import { buildRestorePlan, createBackup, planBackup, verifyBackup } from './backup-transaction.mjs';
-import { readInstallIdentity } from './install-identity.mjs';
+import { readInstallIdentity } from '../install-identity.mjs';
 
 const USAGE = [
   '用法：',

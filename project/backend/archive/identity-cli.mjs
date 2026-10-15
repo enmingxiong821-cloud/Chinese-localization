@@ -1,6 +1,6 @@
 /** 安装标识 CLI：只读，输出可比对的标识与关键文件指纹，不写入任何位置。 */
 import path from 'node:path';
-import { identityComplete, readInstallIdentity } from './install-identity.mjs';
+import { identityComplete, readInstallIdentity } from '../install-identity.mjs';
 
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === '--help') {

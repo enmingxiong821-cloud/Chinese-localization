@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mapNls, composePack } from './cursor-pack.mjs';
 import { validateTranslation } from './translation-quality.mjs';
-import { readResourceSet } from './scanner.mjs';
+import { readResourceSet } from '../scanner.mjs';
 
 test('顺序映射模块及键，保留相同英文不同语境', () => {
   assert.deepEqual(mapNls([['a', ['k']], ['b', ['k']]], ['Open', 'Open']), [ { module: 'a', key: 'k', source: 'Open' }, { module: 'b', key: 'k', source: 'Open' } ]);

@@ -10,7 +10,7 @@
  */
 import path from 'node:path';
 import { readCandidatePayload } from './candidate-artifacts.mjs';
-import { sha256 } from './safe-io.mjs';
+import { sha256 } from '../safe-io.mjs';
 
 export const TARGET_DEFAULT = 'zh-Hans';
 export const CATALOG_SELECTOR = 'meta[name="i18n-catalogs"]';

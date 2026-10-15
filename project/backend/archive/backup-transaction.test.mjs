@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/prom
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildRestorePlan, createBackup, planBackup, verifyBackup } from './backup-transaction.mjs';
-import { readInstallIdentity } from './install-identity.mjs';
+import { readInstallIdentity } from '../install-identity.mjs';
 
 const MANIFEST = `<?xml version="1.0" encoding="utf-8"?>
 <Package><Identity Name="Anthropic.Claude" Publisher="CN=Anthropic" Version="2.31226.1.0" ProcessorArchitecture="x64" /></Package>`;

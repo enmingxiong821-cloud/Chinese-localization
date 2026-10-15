@@ -1,5 +1,5 @@
 /** 扫描 CLI：仅输出资源元数据，不输出文件正文或用户配置。 */
-import { scanApplication } from './scanner.mjs';
+import { scanApplication } from '../scanner.mjs';
 
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === '--help') {

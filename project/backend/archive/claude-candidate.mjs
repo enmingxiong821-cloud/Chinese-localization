@@ -1,5 +1,5 @@
 /** Claude首批候选资源：只匹配明确短文案，不进行全文件字符串替换。 */
-import { locateAppRoot, readResourceSet } from './scanner.mjs';
+import { locateAppRoot, readResourceSet } from '../scanner.mjs';
 import { validateTranslation } from './translation-quality.mjs';
 
 // 本项目编写的起始译法；英文相同的不同语境仍需页面审核。

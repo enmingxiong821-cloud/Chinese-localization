@@ -1,4 +1,7 @@
-/** 受控文件读取与目录枚举的共用实现：有界读取、链接拒绝、预算限制。 */
+/**
+ * 受控文件读取与目录枚举的共用实现：有界读取、预算限制，枚举时拒绝链接与特殊文件。
+ * readBoundedFile / hashFile 自身不做链接检查，调用方须先用 assertRealDirectory 解析路径。
+ */
 import { createHash } from 'node:crypto';
 import { lstat, open, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';

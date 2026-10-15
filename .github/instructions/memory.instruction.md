@@ -32,4 +32,10 @@ applyTo: '**'
 
 ## 当前状态
 
-v1.0 已交付：安装器可安装/校验/还原，层 C 界面中文已在真实安装的已登录主界面上验收。
+v1.1 已交付：`installer/` 是可安装/校验/还原的一键安装器，层 C 界面中文已在真实安装的已登录主界面上验收。
+
+交付路径只有 `installer/`，它递归 import 到的 `project/backend/` 三个模块（`safe-io.mjs`、
+`install-identity.mjs`、`scanner.mjs`）是活代码，其余已归档：早期工具链在
+`project/backend/archive/`，早期文档在 `doc/archive/`。**改动只针对活代码与 `installer/`。**
+
+现状、键数、覆盖率以 `README.md` 与 `installer/translations/SOURCES.md` 为准。

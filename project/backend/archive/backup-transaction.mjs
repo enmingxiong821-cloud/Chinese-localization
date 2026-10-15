@@ -5,8 +5,8 @@
  */
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { assertRealDirectory, listRegularFiles, readBoundedFile, safeRelative, sha256 } from './safe-io.mjs';
-import { fingerprintFile, readInstallIdentity } from './install-identity.mjs';
+import { assertRealDirectory, listRegularFiles, readBoundedFile, safeRelative, sha256 } from '../safe-io.mjs';
+import { fingerprintFile, readInstallIdentity } from '../install-identity.mjs';
 
 const MANIFEST = 'backup-manifest.json';
 const FILES_DIR = 'files';
