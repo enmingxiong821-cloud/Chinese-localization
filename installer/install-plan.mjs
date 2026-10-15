@@ -15,6 +15,12 @@ export const USER_DATA_DIR_NAME = 'Claude';
 export const REL_I18N_DIR = 'resources/ion-dist/i18n';
 export const REL_ASSETS_DIR = 'resources/ion-dist/assets/v1';
 export const REL_BASE_CATALOG = 'resources/ion-dist/i18n/en-US.json';
+/**
+ * 第二部词典：模型与思考档位选择器的文案。前端把 base 与 dynamic 放在同一个 Promise.all 里取，
+ * 任一份失败整盘就不加载，所以它必须跟着一起补，不能留空。
+ */
+export const REL_DYNAMIC_DIR = 'resources/ion-dist/i18n/dynamic';
+export const REL_DYNAMIC_BASE = 'resources/ion-dist/i18n/dynamic/en-US.json';
 export const BASE_LOCALE = 'en-US';
 export const TARGET_LOCALE = 'zh-Hans';
 export const HTML_FILES = Object.freeze(['index.html', 'frame-shell.html', 'frame-connect.html', 'frame-manage.html']);
@@ -95,13 +101,22 @@ function runPowerShell(script) {
   return result;
 }
 
+function readCatalogAt(packageRoot, relative) {
+  const file = path.join(packageRoot, APP_DIR, ...relative.split('/'));
+  if (!existsSync(file)) throw new Error(`官方包缺少词典：${relative}`);
+  const parsed = JSON.parse(readFileSync(file, 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`词典不是键值对象：${relative}`);
+  return parsed;
+}
+
 /** 读官方基线词典的键集。译文表要挂在这个键空间上，键漂移就是版本漂移。 */
 export function readBaseCatalog(packageRoot) {
-  const file = path.join(packageRoot, APP_DIR, ...REL_BASE_CATALOG.split('/'));
-  if (!existsSync(file)) throw new Error(`官方包缺少基线词典：${REL_BASE_CATALOG}`);
-  const parsed = JSON.parse(readFileSync(file, 'utf8'));
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('基线词典不是键值对象');
-  return parsed;
+  return readCatalogAt(packageRoot, REL_BASE_CATALOG);
+}
+
+/** 读官方动态词典（模型与思考档位选择器）。键空间独立，覆盖率不并入主表统计。 */
+export function readDynamicCatalog(packageRoot) {
+  return readCatalogAt(packageRoot, REL_DYNAMIC_BASE);
 }
 
 /** 译文表与基线键空间的交集大小，以及表里多出来的键（官方删过的旧键）。 */

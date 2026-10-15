@@ -4,9 +4,9 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 
 ## 现状
 
-层 C（前端 SPA，34,954 键）的中文**已完整落地并装机验收**，键覆盖率 **99.34%**
-（34,725 / 34,954）。未覆盖的 229 条是 URL、UUID、标识符等本就应保留原样的值，
-回落即得官方原文，**界面上不出现英文残留**。
+层 C（前端 SPA，34,954 键 + 动态词典 49 键）的中文**已完整落地并装机验收**，主词典键覆盖率
+**99.52%**（34,786 / 34,954），动态词典 **100%**。未覆盖的 168 条全是品牌名、型号名、技术标识与
+示例值（`GitHub`、`Haiku`、`MCP`、URL、UUID…），**本就应保留英文原样**，回落即得官方原文。
 
 交付形态是**一键安装器**（[`installer/`](installer/)）：双击 `安装.cmd`，自动复制一份官方程序的
 独立副本、打入中文、建好快捷方式。**官方安装目录一个字节都不动**，随时可整体删除还原。
@@ -20,12 +20,14 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 | --- | --- | --- |
 | A | `app/locales/*.pak` | Chromium 自带，`zh-CN.pak`/`zh-TW.pak` 随包发布，**无需处理** |
 | B | `app/resources/{locale}.json` | 43 个语言，`zh-Hans.json` 随包发布，**无需处理** |
-| C | `app/resources/ion-dist/i18n/*.json` | 前端 SPA，34,954 键，**官方无中文**，需打补丁 |
+| C | `app/resources/ion-dist/i18n/*.json` 与 `i18n/dynamic/*.json` | 前端 SPA，34,954 + 49 键，**官方无中文**，需打补丁 |
 | D | 副本 `profile\Claude\config.json` 的 `locale` | 应用级语言开关（副本自己的配置） |
 
 层 C 的 locale 解析链是「`localStorage['spa:locale']` → `i18n-catalogs` 元数据 →
 11 语言白名单」，白名单里没有中文。`ion-dist` 的 11 份资源键集完全一致
 （各 34,954 键，0 缺 0 余），所以补一份 `zh-Hans.json` 在结构上是安全的。
+`i18n/dynamic/` 是另一部小词典（模型与思考档位选择器的文案，49 键），前端把 base 与 dynamic
+放在**同一个 `Promise.all`** 里取，任一份失败整盘就不加载 —— 所以两份必须一起补。
 
 ## 落地路径：可写副本
 
@@ -35,25 +37,26 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 1. 把官方包整份复制到 `%LOCALAPPDATA%\Claude-zh\package\`（约 700 MB）；
 2. 启动副本时把 `LOCALAPPDATA` 指向副本专属目录，并加 `--user-data-dir` 把 Electron 的
    userData 也钉在副本内 → 副本有独立 userData 与独立单实例锁，可与官方版**同时运行互不干扰**；
-3. 在副本里打三处补丁（见下）。
+3. 在副本里打四处补丁（见下）。
 
 副本不会自动更新（包内无 `app-update.yml`），所以补丁不会被官方升级覆盖；官方升级后重跑一次
 安装器即可。**副本与官方版之间没有共享文件**，因此也不需要复制或导出任何凭据；代价是副本是
 全新环境，首次启动需在副本内登录一次。
 
-### 三处补丁
+### 四处补丁
 
 | # | 位置 | 改动 |
 | --- | --- | --- |
-| 1 | `app/resources/ion-dist/i18n/zh-Hans.json` | 新增文件：官方 `en-US.json` 作底座 + 34,725 条中文覆盖 |
-| 2 | `app/resources/ion-dist/assets/v1/shared-*.js` | 两处 11 语言白名单数组各追加 `"zh-Hans"`（共 +20 字节，恰好 2 处） |
-| 3 | `app/resources/ion-dist/{index,frame-shell,frame-connect,frame-manage}.html` | 各在 `<meta charset>` 之后插入 159 字节，注册中文目录并把 `localStorage["spa:locale"]` 钉为 `zh-Hans` |
+| 1 | `app/resources/ion-dist/i18n/zh-Hans.json` | 新增文件：官方 `en-US.json` 作底座 + 34,786 条中文覆盖 |
+| 2 | `app/resources/ion-dist/i18n/dynamic/zh-Hans.json` | 新增文件：官方 `dynamic/en-US.json` 作底座 + 49 条中文覆盖 |
+| 3 | `app/resources/ion-dist/assets/v1/shared-*.js` | 两处 11 语言白名单数组各追加 `"zh-Hans"`（共 +20 字节，恰好 2 处） |
+| 4 | `app/resources/ion-dist/{index,frame-shell,frame-connect,frame-manage}.html` | 各在 `<meta charset>` 之后插入 159 字节，注册中文目录并把 `localStorage["spa:locale"]` 钉为 `zh-Hans` |
 
 补丁不修改 `claude.exe`、不解包或改写 asar、不触碰数字签名。
 
 ## 已知残留与不做的事
 
-- 副本是官方二进制 + 三处文本资源改动，**不提供零风险保证**。
+- 副本是官方二进制 + 四处文本资源改动，**不提供零风险保证**。
 - 未登录时的**欢迎页**（"Claude for Windows / 与 Claude 对话的最快方式 / 开始使用"）中文由
   **服务端**随 `locale` 本地化，**不是层 C 词典的产物**（删掉 `i18n/zh-Hans.json` 欢迎页也不变）。
   **验收层 C 必须在副本登录后进主界面看**，欢迎页/登录页不能作为层 C 的证据。
@@ -87,7 +90,7 @@ node installer/install-cli.mjs restore
 node --test
 ```
 
-无需参数，会递归发现全部测试（带目录参数在本机不生效，目录会被当成文件路径）。默认 **167 项通过、
+无需参数，会递归发现全部测试（带目录参数在本机不生效，目录会被当成文件路径）。默认 **169 项通过、
 2 项跳过**，约 3 秒。跳过的是归档里两个会**真开 headless 浏览器**的端到端用例，按需单独启用：
 
 ```bash

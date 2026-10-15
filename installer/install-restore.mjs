@@ -6,7 +6,13 @@ import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync } from 'nod
 import path from 'node:path';
 import { removeShortcuts, writeFileAtomic } from './install-apply.mjs';
 import { setLocale } from './install-patch.mjs';
-import { REL_I18N_DIR, TARGET_LOCALE } from './install-plan.mjs';
+import { REL_DYNAMIC_DIR, REL_I18N_DIR, TARGET_LOCALE } from './install-plan.mjs';
+
+/** 安装时新增的两份词典，相对包根（带 app/ 前缀），与 backupFile 的键一致。 */
+const ADDED_CATALOGS = Object.freeze([
+  `app/${REL_I18N_DIR}/${TARGET_LOCALE}.json`,
+  `app/${REL_DYNAMIC_DIR}/${TARGET_LOCALE}.json`
+]);
 
 function walkFiles(directory) {
   const found = [];
@@ -46,18 +52,20 @@ export function restoreFiles({ packageRoot, revertRoot, log = () => {} }) {
  * 删掉安装时新增的词典文件（原件里本来没有它）。
  * 官方若自带同名词典，它在 revert/files 里有备份、restoreFiles 已经写回去了，这里必须跳过删除。
  */
-export function removeAddedCatalog({ packageRoot, revertRoot, log = () => {} }) {
-  // 这个相对路径要跟 backupFile 用的一致（相对包根，带 app/ 前缀），否则找不到备份
-  const relative = `app/${REL_I18N_DIR}/${TARGET_LOCALE}.json`;
-  const file = path.join(packageRoot, ...relative.split('/'));
-  if (!existsSync(file)) return false;
-  if (revertRoot && existsSync(path.join(revertRoot, 'files', ...relative.split('/')))) {
-    log(`${relative} 是官方原件，已由备份写回`);
-    return false;
+export function removeAddedCatalog({ packageRoot, revertRoot, log = () => {}, relatives = ADDED_CATALOGS }) {
+  let removed = false;
+  for (const relative of relatives) {
+    const file = path.join(packageRoot, ...relative.split('/'));
+    if (!existsSync(file)) continue;
+    if (revertRoot && existsSync(path.join(revertRoot, 'files', ...relative.split('/')))) {
+      log(`${relative} 是官方原件，已由备份写回`);
+      continue;
+    }
+    rmSync(file, { force: true });
+    log(`已删除 ${relative}`);
+    removed = true;
   }
-  rmSync(file, { force: true });
-  log(`已删除 ${relative}`);
-  return true;
+  return removed;
 }
 
 /** 删掉安装时写进去的 locale 字段。若整个文件都是安装时新建的、现在只剩空壳，就连文件一起删。 */

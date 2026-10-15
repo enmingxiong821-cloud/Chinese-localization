@@ -1,5 +1,5 @@
 /**
- * 安装编排：复制副本 → 三处补丁 → 写 locale → 建快捷方式 → 落状态。
+ * 安装编排：复制副本 → 四处补丁 → 写 locale → 建快捷方式 → 落状态。
  * 所有原件在改动前先进 revert/，任何一步失败都不会留下半改状态（补丁全部走临时文件 + rename）。
  */
 import { spawnSync } from 'node:child_process';
@@ -21,7 +21,7 @@ import {
   README_NAME,
   REL_ASSETS_DIR,
   REL_BASE_CATALOG,
-  REL_I18N_DIR,
+  REL_DYNAMIC_BASE,
   SHORTCUT_NAME,
   STATE_NAME,
   TARGET_LOCALE
@@ -129,41 +129,57 @@ export function refreshPackage(sourceRoot, destinationRoot, { log = () => {}, re
 const relativeOf = (appRoot, file) => path.relative(path.dirname(appRoot), file).split(path.sep).join('/');
 
 /**
- * 三处补丁。返回 patched 映射（相对包根 → 新文件 sha256）与新增文件列表。
- * catalogIsOriginal 由调用方按**官方源包**判定：副本里的 zh-Hans.json 在重复安装时是上一轮的
+ * 四处补丁。返回 patched 映射（相对包根 → 新文件 sha256）与新增文件列表。
+ * isOriginal 由调用方按**官方源包**判定：副本里的 zh-Hans.json 在重复安装时是上一轮的
  * 补丁产物，若拿副本当依据，就会被备份成「原件」，还原时反把旧中文词典写回去。
  */
 export function applyPatches({
   packageRoot,
-  baseCatalog,
   overrides,
+  dynamicOverrides = {},
   revertRoot,
   log = () => {},
-  catalogIsOriginal = false
+  catalogIsOriginal = false,
+  dynamicIsOriginal = false
 }) {
   const appRoot = path.join(packageRoot, 'app');
   const patched = {};
   const added = [];
 
-  const catalogTarget = path.join(appRoot, ...REL_BASE_CATALOG.split('/'));
-  const enUsText = readFileSync(catalogTarget, 'utf8');
-  const baseParsed = JSON.parse(enUsText);
-  const { catalog, applied } = buildCatalog(baseParsed, overrides);
-  const zhPath = path.join(appRoot, ...REL_I18N_DIR.split('/'), `${TARGET_LOCALE}.json`);
-  const zhText = serializeCatalog(catalog);
-  const zhRelative = relativeOf(appRoot, zhPath);
-  // 官方若某天自带 zh-Hans.json，先备份：还原时它是官方原件，不能当补丁产物删掉
-  if (catalogIsOriginal) {
-    backupFile(packageRoot, zhRelative, revertRoot);
-  } else {
-    // 官方源没有这个文件，备份里的同名文件只可能是上一轮安装留下的补丁产物，
-    // 留着会让「还原」把旧词典写回副本——还原路径上这是假成功，必须清掉
-    rmSync(path.join(revertRoot, 'files', ...zhRelative.split('/')), { force: true });
-  }
-  writeFileAtomic(zhPath, zhText);
-  if (!catalogIsOriginal) added.push(zhRelative);
-  patched[zhRelative] = digest(Buffer.from(zhText, 'utf8'));
-  log(`已生成中文词典 ${TARGET_LOCALE}.json（覆盖 ${applied} 条）`);
+  /**
+   * 以官方词典为底座生成 zh-Hans.json。baseRelative 指向官方那份底盘词典，产物落在同目录。
+   * 官方自带同名词典时先备份（还原要写回它）；否则备份目录里的同名文件只可能是上一轮的产物，
+   * 留着会让「还原」把旧词典写回副本——还原路径上这是假成功，必须清掉。
+   */
+  const patchCatalog = ({ baseRelative, table, isOriginal, label }) => {
+    const baseFile = path.join(appRoot, ...baseRelative.split('/'));
+    const base = JSON.parse(readFileSync(baseFile, 'utf8'));
+    const { catalog, applied } = buildCatalog(base, table);
+    const zhRelative = relativeOf(appRoot, path.join(path.dirname(baseFile), `${TARGET_LOCALE}.json`));
+    if (isOriginal) {
+      backupFile(packageRoot, zhRelative, revertRoot);
+    } else {
+      rmSync(path.join(revertRoot, 'files', ...zhRelative.split('/')), { force: true });
+    }
+    const zhText = serializeCatalog(catalog);
+    writeFileAtomic(path.join(packageRoot, ...zhRelative.split('/')), zhText);
+    if (!isOriginal) added.push(zhRelative);
+    patched[zhRelative] = digest(Buffer.from(zhText, 'utf8'));
+    log(`已生成中文词典 ${label}（覆盖 ${applied} 条）`);
+  };
+
+  patchCatalog({
+    baseRelative: REL_BASE_CATALOG,
+    table: overrides,
+    isOriginal: catalogIsOriginal,
+    label: `${TARGET_LOCALE}.json`
+  });
+  patchCatalog({
+    baseRelative: REL_DYNAMIC_BASE,
+    table: dynamicOverrides,
+    isOriginal: dynamicIsOriginal,
+    label: `dynamic/${TARGET_LOCALE}.json`
+  });
 
   const assetsDir = path.join(appRoot, ...REL_ASSETS_DIR.split('/'));
   if (!existsSync(assetsDir)) throw new Error(`副本缺少前端资源目录：${REL_ASSETS_DIR}`);

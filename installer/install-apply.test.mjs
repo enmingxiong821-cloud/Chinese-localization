@@ -16,9 +16,11 @@ function makePackage() {
   const app = path.join(root, 'app');
   const ion = path.join(app, 'resources', 'ion-dist');
   const assets = path.join(ion, 'assets', 'v1');
+  const dynamic = path.join(ion, 'i18n', 'dynamic');
   mkdirSync(assets, { recursive: true });
-  mkdirSync(path.join(ion, 'i18n'), { recursive: true });
+  mkdirSync(dynamic, { recursive: true });
   writeFileSync(path.join(ion, 'i18n', 'en-US.json'), JSON.stringify({ a: 'Alpha', b: 'Beta', c: 'Gamma' }, null, 2));
+  writeFileSync(path.join(dynamic, 'en-US.json'), JSON.stringify({ d: 'Delta', e: 'Epsilon' }, null, 2));
   writeFileSync(path.join(ion, 'index.html'), INDEX_HTML);
   writeFileSync(path.join(ion, 'frame-shell.html'), SHELL_HTML);
   writeFileSync(path.join(ion, 'frame-connect.html'), INDEX_HTML);
@@ -30,6 +32,7 @@ function makePackage() {
     appRoot: app,
     revertRoot: path.join(root, 'revert'),
     ion,
+    dynamic,
     assets,
     bundle: path.join(assets, 'shared-50-TEST.js')
   };
@@ -37,20 +40,25 @@ function makePackage() {
 
 const patchOptions = fixture => ({
   packageRoot: fixture.packageRoot,
-  baseCatalog: { a: 'Alpha', b: 'Beta', c: 'Gamma' },
   overrides: { a: '甲', z: '不在底座' },
+  dynamicOverrides: { d: '丁' },
   revertRoot: fixture.revertRoot,
   catalogIsOriginal: false
 });
 
-test('applyPatches 生成词典、追加白名单、注入四个页面', () => {
+test('applyPatches 生成两份词典、追加白名单、注入四个页面', () => {
   const fixture = makePackage();
   const { patched, added } = applyPatches(patchOptions(fixture));
 
   const catalog = JSON.parse(readFileSync(path.join(fixture.ion, 'i18n', 'zh-Hans.json'), 'utf8'));
   assert.deepEqual(catalog, { a: '甲', b: 'Beta', c: 'Gamma' });
-  assert.deepEqual(added, ['app/resources/ion-dist/i18n/zh-Hans.json']);
-  assert.equal(Object.keys(patched).length, 6);
+  const dynamic = JSON.parse(readFileSync(path.join(fixture.dynamic, 'zh-Hans.json'), 'utf8'));
+  assert.deepEqual(dynamic, { d: '丁', e: 'Epsilon' }, '动态词典也要跟着补，缺了前端整盘不加载');
+  assert.deepEqual(added, [
+    'app/resources/ion-dist/i18n/zh-Hans.json',
+    'app/resources/ion-dist/i18n/dynamic/zh-Hans.json'
+  ]);
+  assert.equal(Object.keys(patched).length, 7);
 
   assert.equal((readFileSync(fixture.bundle, 'utf8').match(/"zh-Hans"/g) || []).length, 2);
   for (const name of ['index.html', 'frame-shell.html', 'frame-connect.html', 'frame-manage.html']) {
@@ -93,18 +101,27 @@ test('官方源不带 zh-Hans.json 时，重复安装不把它当原件备份下
   const fixture = makePackage();
   const first = applyPatches(patchOptions(fixture));
   const zh = path.join(fixture.ion, 'i18n', 'zh-Hans.json');
-  // 造出旧版安装器留下的现场：备份目录里躺着一份补丁产物
-  const stale = path.join(fixture.revertRoot, 'files', 'app', 'resources', 'ion-dist', 'i18n', 'zh-Hans.json');
-  mkdirSync(path.dirname(stale), { recursive: true });
-  writeFileSync(stale, '{"旧":"补丁产物"}');
+  const zhDynamic = path.join(fixture.dynamic, 'zh-Hans.json');
+  // 造出旧版安装器留下的现场：备份目录里躺着两份补丁产物
+  const staleFiles = [
+    path.join(fixture.revertRoot, 'files', 'app', 'resources', 'ion-dist', 'i18n', 'zh-Hans.json'),
+    path.join(fixture.revertRoot, 'files', 'app', 'resources', 'ion-dist', 'i18n', 'dynamic', 'zh-Hans.json')
+  ];
+  for (const stale of staleFiles) {
+    mkdirSync(path.dirname(stale), { recursive: true });
+    writeFileSync(stale, '{"旧":"补丁产物"}');
+  }
 
   const second = applyPatches(patchOptions(fixture));
-  assert.deepEqual(second.added, first.added, '第二轮仍要记着这个词典是新增的');
-  assert.equal(existsSync(stale), false, '补丁产物不能留在备份里，否则还原会写回旧词典');
+  assert.deepEqual(second.added, first.added, '第二轮仍要记着这两份词典是新增的');
+  for (const stale of staleFiles) {
+    assert.equal(existsSync(stale), false, '补丁产物不能留在备份里，否则还原会写回旧词典');
+  }
 
   restoreFiles({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot });
   assert.equal(removeAddedCatalog({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot }), true);
   assert.equal(existsSync(zh), false, '还原后副本里不该再留中文词典');
+  assert.equal(existsSync(zhDynamic), false, '还原后副本里不该再留中文动态词典');
 });
 
 test('backupFile 不覆盖已存在的备份', () => {
@@ -287,18 +304,27 @@ test('refreshPackage 清掉上一版残留的补丁文件，副本与官方包�
 test('官方若自带 zh-Hans.json，还原时写回原件而不是当补丁产物删掉', () => {
   const fixture = makePackage();
   const official = path.join(fixture.ion, 'i18n', 'zh-Hans.json');
+  const officialDynamic = path.join(fixture.dynamic, 'zh-Hans.json');
   writeFileSync(official, '{"official":"词典"}');
-  applyPatches({ ...patchOptions(fixture), catalogIsOriginal: true });
+  writeFileSync(officialDynamic, '{"official":"动态词典"}');
+  applyPatches({
+    ...patchOptions(fixture),
+    catalogIsOriginal: true,
+    dynamicIsOriginal: true
+  });
   assert.notEqual(readFileSync(official, 'utf8'), '{"official":"词典"}', '补丁应覆盖官方词典');
+  assert.notEqual(readFileSync(officialDynamic, 'utf8'), '{"official":"动态词典"}', '补丁应覆盖官方动态词典');
 
   restoreFiles({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot });
   assert.equal(readFileSync(official, 'utf8'), '{"official":"词典"}');
+  assert.equal(readFileSync(officialDynamic, 'utf8'), '{"official":"动态词典"}');
   assert.equal(
     removeAddedCatalog({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot }),
     false,
     '官方自带的词典不能删，否则「逐字节还原」不成立'
   );
   assert.equal(existsSync(official), true);
+  assert.equal(existsSync(officialDynamic), true);
 });
 
 test('writeFileAtomic 落盘内容与预期一致且不留临时文件', () => {

@@ -9,7 +9,8 @@ import {
   APP_DIR,
   MIN_COVERAGE,
   README_NAME,
-  REL_I18N_DIR,
+  REL_BASE_CATALOG,
+  REL_DYNAMIC_BASE,
   TARGET_LOCALE,
   WHITELIST_EXPECTED,
   findWhitelistTargets,
@@ -17,6 +18,7 @@ import {
   locateOfficialPackage,
   measureCoverage,
   readBaseCatalog,
+  readDynamicCatalog,
   readSourceIdentity,
   readState,
   resolvePaths
@@ -39,6 +41,7 @@ import { restoreAll } from './install-restore.mjs';
 
 const HERE = import.meta.dirname;
 const TABLE_PATH = path.join(HERE, 'translations', `${TARGET_LOCALE}.overrides.json`);
+const DYNAMIC_TABLE_PATH = path.join(HERE, 'translations', `${TARGET_LOCALE}.dynamic.json`);
 const README_TEMPLATE_PATH = path.join(HERE, README_NAME);
 const SCHEMA_VERSION = 1;
 
@@ -49,11 +52,30 @@ function fail(message, code = 2) {
   process.exitCode = code;
 }
 
-function loadTable() {
-  if (!existsSync(TABLE_PATH)) throw new Error(`缺少译文表：${TABLE_PATH}`);
-  const bytes = readFileSync(TABLE_PATH);
+function loadTableFrom(file) {
+  if (!existsSync(file)) throw new Error(`缺少译文表：${file}`);
+  const bytes = readFileSync(file);
   const data = JSON.parse(bytes.toString('utf8'));
   return { sha256: digest(bytes), entries: Object.keys(data).length, data };
+}
+
+const loadTable = () => loadTableFrom(TABLE_PATH);
+const loadDynamicTable = () => loadTableFrom(DYNAMIC_TABLE_PATH);
+
+/** 官方那份词典对应的中文产物在包里的相对路径（与 backupFile 的键一致，带 app/ 前缀）。 */
+function zhRelativeOf(baseRelative) {
+  return [APP_DIR, ...baseRelative.split('/').slice(0, -1), `${TARGET_LOCALE}.json`];
+}
+
+/**
+ * 判断某份词典的 zh-Hans 产物是不是官方原件，以及备份目录里有没有混进上一轮的产物。
+ * 只看官方源包，不看副本：副本里的同名文件多半是上一轮安装留下的补丁产物。
+ */
+function catalogOrigin(sourcePackageRoot, revertRoot, baseRelative) {
+  const zhRelative = zhRelativeOf(baseRelative);
+  const isOriginal = existsSync(path.join(sourcePackageRoot, ...zhRelative));
+  const staleBackup = !isOriginal && existsSync(path.join(revertRoot, 'files', ...zhRelative));
+  return { isOriginal, staleBackup };
 }
 
 function loadReadmeTemplate() {
@@ -104,18 +126,23 @@ async function install() {
     return;
   }
 
+  // 动态词典缺失会让前端整盘不加载（base 与 dynamic 在同一个 Promise.all 里），这里一并门禁
+  const dynamicTable = loadDynamicTable();
+  const dynamicBase = readDynamicCatalog(source.packageRoot);
+  const dynamicCoverage = measureCoverage(dynamicBase, dynamicTable.data);
+  log(`动态词典覆盖：${dynamicCoverage.matched} / ${dynamicCoverage.baseKeys}`);
+
   const identity = await readSourceIdentity(source.packageRoot);
   const state = readState(paths.statePath);
-  // 词典是否原件只认官方源包：副本里的同名文件多半是上一轮安装留下的补丁产物
-  const catalogRelative = [APP_DIR, ...REL_I18N_DIR.split('/'), `${TARGET_LOCALE}.json`];
-  const catalogIsOriginal = existsSync(path.join(source.packageRoot, ...catalogRelative));
+  const mainCatalog = catalogOrigin(source.packageRoot, paths.revertRoot, REL_BASE_CATALOG);
+  const dynamicCatalog = catalogOrigin(source.packageRoot, paths.revertRoot, REL_DYNAMIC_BASE);
   // 补丁产物混进备份目录后，还原会把旧词典写回副本。幂等判据必须把它算作「需要重做」，
   // 否则修好安装器后重跑一次也清不掉旧安装的残留。
-  const staleCatalogBackup = !catalogIsOriginal
-    && existsSync(path.join(paths.revertRoot, 'files', ...catalogRelative));
+  const staleCatalogBackup = mainCatalog.staleBackup || dynamicCatalog.staleBackup;
   if (state
     && state.sourceIdentitySha256 === identity.identitySha256
     && state.tableSha256 === table.sha256
+    && state.dynamicTableSha256 === dynamicTable.sha256
     && patchedIntact(paths.packageRoot, state)
     && !staleCatalogBackup) {
     log('\n已安装且为最新版本，未做任何改动。');
@@ -151,11 +178,12 @@ async function install() {
 
   const { patched, added } = applyPatches({
     packageRoot: paths.packageRoot,
-    baseCatalog,
     overrides: table.data,
+    dynamicOverrides: dynamicTable.data,
     revertRoot: paths.revertRoot,
     log,
-    catalogIsOriginal
+    catalogIsOriginal: mainCatalog.isOriginal,
+    dynamicIsOriginal: dynamicCatalog.isOriginal
   });
 
   const locale = writeLocale({ configPath: paths.configPath, revertRoot: paths.revertRoot, log });
@@ -184,6 +212,8 @@ async function install() {
     tableSha256: table.sha256,
     tableEntries: table.entries,
     coverage: Number(coverage.ratio.toFixed(6)),
+    dynamicTableSha256: dynamicTable.sha256,
+    dynamicEntries: dynamicTable.entries,
     patched,
     added,
     locale: { path: paths.configPath, previous: locale.previous },
@@ -201,6 +231,8 @@ async function verify() {
   const source = locateOfficialPackage();
   const baseCatalog = readBaseCatalog(source.packageRoot);
   const coverage = measureCoverage(baseCatalog, table.data);
+  const dynamicBase = readDynamicCatalog(source.packageRoot);
+  const dynamicCoverage = measureCoverage(dynamicBase, loadDynamicTable().data);
   const state = readState(paths.statePath);
   const problems = [];
 
@@ -209,6 +241,12 @@ async function verify() {
     problems.push('官方 Claude 已更新，副本补丁需要重跑安装');
   }
   if (state && !patchedIntact(paths.packageRoot, state)) problems.push('副本里的补丁文件与记录不一致');
+  for (const relative of [REL_BASE_CATALOG, REL_DYNAMIC_BASE]) {
+    const zh = zhRelativeOf(relative);
+    if (existsSync(paths.appRoot) && !existsSync(path.join(paths.packageRoot, ...zh))) {
+      problems.push(`副本缺少中文词典 ${zh.join('/')}`);
+    }
+  }
   if (existsSync(paths.appRoot)) {
     for (const html of inspectHtmlFiles(paths.appRoot)) {
       if (!html.present) problems.push(`缺少前端页面 ${html.relative}`);
@@ -220,6 +258,7 @@ async function verify() {
 
   log(`官方版本：${source.version}`);
   log(`覆盖率：${(coverage.ratio * 100).toFixed(2)}%（${coverage.matched} / ${coverage.baseKeys}）`);
+  log(`动态词典覆盖：${dynamicCoverage.matched} / ${dynamicCoverage.baseKeys}`);
   log(`安装状态：${state ? `${state.sourceVersion}，${state.updatedAt}` : '无'}`);
   log(`副本语言设置：${readCurrentLocale(paths.configPath) ?? '未设置'}`);
   if (problems.length) {
