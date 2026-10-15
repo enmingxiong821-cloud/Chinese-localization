@@ -112,6 +112,35 @@ test('restoreFiles 逐字节写回原件，removeAddedCatalog 删除新增词典
   assert.equal(existsSync(file), false);
 });
 
+test('restoreFiles 备份目录缺失时标出 noBackup，不伪装成还原完成', () => {
+  const fixture = makePackage();
+  const result = restoreFiles({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot });
+  assert.equal(result.restored, 0);
+  assert.equal(result.noBackup, true, '没有备份时必须让调用方区分「本来没打过补丁」与「原件丢了」');
+});
+
+test('restoreLocale 拒绝 sidecar 把写入引到配置目录之外', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-sl-'));
+  const configPath = path.join(root, 'profile', 'Claude', 'config.json');
+  const revertRoot = path.join(root, 'revert');
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  writeFileSync(configPath, '{"locale":"zh-Hans"}');
+  const outside = path.join(root, '别处', 'config.json');
+  mkdirSync(path.dirname(outside), { recursive: true });
+  const outsideBefore = '{"locale":"zh-Hans","keep":"yes"}';
+  writeFileSync(outside, outsideBefore);
+  mkdirSync(revertRoot, { recursive: true });
+  writeFileSync(
+    path.join(revertRoot, 'config-locale.json'),
+    JSON.stringify({ configPath: outside, existed: true, previous: 'en-US' })
+  );
+
+  const result = restoreLocale({ configPath, revertRoot });
+  assert.equal(result.restored, false);
+  assert.equal(result.reason, 'path-mismatch');
+  assert.equal(readFileSync(outside, 'utf8'), outsideBefore, '配置目录之外的文件不该被改写');
+});
+
 test('findWhitelistTargets 只认带锚点的 bundle 并报出次数', () => {
   const fixture = makePackage();
   const targets = findWhitelistTargets(fixture.appRoot);

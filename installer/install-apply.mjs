@@ -101,9 +101,12 @@ export function copyPackage(sourceRoot, destinationRoot, { log = () => {} } = {}
  * package/ 里只有官方副本与补丁产物，没有用户数据（profile/ 与 revert/ 是它的同级目录）。
  */
 export function refreshPackage(sourceRoot, destinationRoot, { log = () => {}, reason = 'updated' } = {}) {
-  log(reason === 'no-record'
-    ? '没有可用的安装记录，正在用官方文件重建副本…'
-    : '检测到 Claude 已更新，正在用新版官方文件刷新副本…');
+  const refreshMessages = {
+    'no-record': '没有可用的安装记录，正在用官方文件重建副本…',
+    damaged: '副本里的补丁文件与安装记录不符，正在用官方文件重建副本…',
+    updated: '检测到 Claude 已更新，正在用新版官方文件刷新副本…'
+  };
+  log(refreshMessages[reason] ?? refreshMessages.updated);
   const result = spawnSync('robocopy.exe', [
     toWindows(sourceRoot),
     toWindows(destinationRoot),

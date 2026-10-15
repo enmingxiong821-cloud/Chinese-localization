@@ -120,14 +120,17 @@ async function install() {
   // 结构门禁先对官方源做一次，且在任何改动之前：官方前端若改了结构，副本与备份都必须原样留着
   gateWhitelist(path.join(source.packageRoot, APP_DIR));
 
+  // 副本存在但补丁与记录不符（被改动或残缺）时同样要重建，否则会在坏副本上重复打补丁
+  const sourceChanged = !state || state.sourceIdentitySha256 !== identity.identitySha256;
+  const patchesDamaged = Boolean(state) && !patchedIntact(paths.packageRoot, state);
   let pristine = false;
   if (!existsSync(paths.packageRoot)) {
     copyPackage(source.packageRoot, paths.packageRoot, { log });
     pristine = true;
-  } else if (!state || state.sourceIdentitySha256 !== identity.identitySha256) {
+  } else if (sourceChanged || patchesDamaged) {
     refreshPackage(source.packageRoot, paths.packageRoot, {
       log,
-      reason: state ? 'updated' : 'no-record'
+      reason: sourceChanged ? (state ? 'updated' : 'no-record') : 'damaged'
     });
     pristine = true;
   }
@@ -235,6 +238,14 @@ async function restore() {
     return;
   }
   const result = restoreAll({ paths, state, log });
+  // 有补丁记录却没有原件备份，说明 revert/files 被删掉了，此刻报「还原完成」是假成功
+  const recordedPatches = Object.keys(state?.patched ?? {}).length;
+  if (result.noBackup && recordedPatches) {
+    log(`\n安装记录里有 ${recordedPatches} 个补丁文件，但备份目录不存在：${path.join(paths.revertRoot, 'files')}`);
+    log(`无法写回原件。如需彻底清除，直接删除整个目录：${paths.installRoot}`);
+    fail('原件备份已丢失，无法还原', 1);
+    return;
+  }
   const missing = result.missing ?? [];
   if (missing.length) {
     log(`\n还原不完整：${result.restored} 个原件已写回，${missing.length} 个因副本目录已不存在而无法写回。`);

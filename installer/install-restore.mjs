@@ -18,10 +18,14 @@ function walkFiles(directory) {
   return found;
 }
 
-/** 把备份里的原件写回副本。返回还原的文件数与缺失列表。 */
+/**
+ * 把备份里的原件写回副本。返回还原的文件数与缺失列表。
+ * 备份目录整个不存在时额外返回 noBackup：调用方要结合安装记录判断这是「本来就没打过补丁」
+ * 还是「原件丢了」，后者必须报失败，不能顺着 restored:0 说成还原完成。
+ */
 export function restoreFiles({ packageRoot, revertRoot, log = () => {} }) {
   const backupRoot = path.join(revertRoot, 'files');
-  if (!existsSync(backupRoot)) return { restored: 0, missing: [] };
+  if (!existsSync(backupRoot)) return { restored: 0, missing: [], noBackup: true };
   const missing = [];
   let restored = 0;
   for (const backup of walkFiles(backupRoot)) {
@@ -86,6 +90,10 @@ export function restoreLocale({ configPath, revertRoot, log = () => {} }) {
   if (!existsSync(sidecar)) return { restored: false, reason: 'no-sidecar' };
   const record = JSON.parse(readFileSync(sidecar, 'utf8'));
   const target = record.configPath || configPath;
+  // sidecar 是本机可写的文件，不能让它把写入引到别的目录：只认安装时记下的那个配置目录
+  if (path.resolve(path.dirname(target)) !== path.resolve(path.dirname(configPath))) {
+    return { restored: false, reason: 'path-mismatch' };
+  }
   if (!existsSync(target)) return { restored: false, reason: 'config-gone' };
   if (record.previous === null || record.previous === undefined) {
     return dropLocale({ target, createdByInstall: record.existed === false, log });

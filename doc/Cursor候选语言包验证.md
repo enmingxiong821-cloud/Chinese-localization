@@ -1,5 +1,8 @@
 # Cursor 候选语言资源生成与验证
 
+> **范围外。** Cursor 路线已废弃，本项目现只做 Claude Desktop。本文与其中的模块
+> （`cursor-pack.mjs`、`build-cursor-pack.mjs`）保留作历史记录，不再维护。
+
 ## 当前交付
 
 新增模块：`project/backend/cursor-pack.mjs`、`translation-quality.mjs`、`build-cursor-pack.mjs`、`cursor-pack.test.mjs`。扫描器增加受控资源集合读取入口；原有只读扫描行为保持。

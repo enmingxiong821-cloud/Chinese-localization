@@ -1,4 +1,5 @@
-/* 离线交互原型：所有应用、连接与翻译状态仅存在当前页面内存。 */
+/* 离线交互原型：所有应用、连接与翻译状态仅存在当前页面内存。
+   历史设计资产：Cursor 与屏幕翻译已不在项目范围内（现只做 Claude Desktop 前端汉化）。 */
 "use strict";
 const APPS = [
   { id: "cursor", name: "Cursor", mark: "C", version: "演示版本 · VS Code 系", route: "语言包 + 专有界面词典", file: "演示语言包 / translations/main.i18n.json", description: "编辑器工作台、Agent 面板与应用设置", scopes: ["工作台菜单与通用设置", "Agent 面板与操作提示", "Cursor 专有设置"] },

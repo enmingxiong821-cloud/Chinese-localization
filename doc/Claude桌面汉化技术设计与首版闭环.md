@@ -5,6 +5,11 @@
 探测范围：`C:\Program Files\WindowsApps\Claude_2.31226.1.0_x64__pzs8sxrjxfjjc\`、`%APPDATA%\Claude\`、`%LOCALAPPDATA%\Claude\logs\`。
 本轮**未写入任何文件、未修改配置、未启动带调试参数的应用、未解包 asar**。
 
+> **版本口径说明。** 本文跨越两个官方版本：§一～§十的探测与反向工程结论绑定
+> **2.31226.1.0**（见 §11 自述），当时层 C 为 34,213 键；§11 起改用**当前基准 2.37337.1.0**，
+> 层 C 为 **34,954** 键、译文命中 **34,725**（99.34%）。文中键数、覆盖率一律以当前基准为准，
+> 译文表的权威口径见 [`installer/translations/SOURCES.md`](../installer/translations/SOURCES.md)。
+
 ---
 
 ## 一、结论先行：问题定义需要修正
