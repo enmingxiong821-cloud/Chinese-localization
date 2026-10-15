@@ -5,7 +5,7 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 ## 给使用者：下载与安装
 
 1. **下载**：到 [Releases](https://github.com/enmingxiong821-cloud/Chinese-localization/releases/latest)
-   下载最新的 `Claude汉化-vX.Y.Z.zip`，解压到任意目录即可（里面就是工具本身，不含 Claude）。
+   下载最新的 `Chinese-localization-vX.Y.Z.zip`，解压到任意目录即可（里面就是工具本身，不含 Claude）。
 2. **装 Node.js**：需要 [Node.js LTS](https://nodejs.org/)（18 以上）。没装的话双击时会直接提示你装。
 3. **双击 `installer\安装.cmd`**。安装器自动定位官方 Claude Desktop → 复制一份独立副本到
    `%LOCALAPPDATA%\Claude-zh\` → 打入中文 → 建好桌面与开始菜单快捷方式。全程无需管理员权限。
@@ -120,11 +120,14 @@ CDP_E2E=1 node --test --test-force-exit
 发布附件直接由 `git archive` 从提交内容生成，只含运行所需的最小闭合，不夹带文档与归档：
 
 ```bash
-git archive --format=zip -o Claude汉化.zip HEAD README.md LICENSE installer project/backend ':(exclude)project/backend/archive'
+git archive --format=zip -o Chinese-localization.zip HEAD README.md LICENSE installer project/backend ':(exclude)project/backend/archive'
 ```
 
 解压后双击 `installer\安装.cmd` 即可；包内的 `installer/*.test.mjs` 也能就地 `node --test`。
 `project/backend/archive/` 是冻结的早期工具链，安装器用不到，别打进去。
+
+**附件名只能用 ASCII**：GitHub 会把发布附件名里的非 ASCII 字符丢掉（传 `Claude汉化-v1.3.zip`
+会变成 `Claude.-v1.3.zip`），所以用 `Chinese-localization-vX.Y.Z.zip` 这种形式。
 
 ## 目录
 
