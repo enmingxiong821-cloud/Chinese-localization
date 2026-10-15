@@ -39,7 +39,8 @@ const patchOptions = fixture => ({
   packageRoot: fixture.packageRoot,
   baseCatalog: { a: 'Alpha', b: 'Beta', c: 'Gamma' },
   overrides: { a: '甲', z: '不在底座' },
-  revertRoot: fixture.revertRoot
+  revertRoot: fixture.revertRoot,
+  catalogIsOriginal: false
 });
 
 test('applyPatches 生成词典、追加白名单、注入四个页面', () => {
@@ -86,6 +87,24 @@ test('applyPatches 第二次执行时备份仍是初版原件', () => {
   applyPatches(patchOptions(fixture));
   const backup = path.join(fixture.revertRoot, 'files', 'app', 'resources', 'ion-dist', 'index.html');
   assert.equal(readFileSync(backup, 'utf8'), INDEX_HTML);
+});
+
+test('官方源不带 zh-Hans.json 时，重复安装不把它当原件备份下来', () => {
+  const fixture = makePackage();
+  const first = applyPatches(patchOptions(fixture));
+  const zh = path.join(fixture.ion, 'i18n', 'zh-Hans.json');
+  // 造出旧版安装器留下的现场：备份目录里躺着一份补丁产物
+  const stale = path.join(fixture.revertRoot, 'files', 'app', 'resources', 'ion-dist', 'i18n', 'zh-Hans.json');
+  mkdirSync(path.dirname(stale), { recursive: true });
+  writeFileSync(stale, '{"旧":"补丁产物"}');
+
+  const second = applyPatches(patchOptions(fixture));
+  assert.deepEqual(second.added, first.added, '第二轮仍要记着这个词典是新增的');
+  assert.equal(existsSync(stale), false, '补丁产物不能留在备份里，否则还原会写回旧词典');
+
+  restoreFiles({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot });
+  assert.equal(removeAddedCatalog({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot }), true);
+  assert.equal(existsSync(zh), false, '还原后副本里不该再留中文词典');
 });
 
 test('backupFile 不覆盖已存在的备份', () => {
@@ -269,7 +288,7 @@ test('官方若自带 zh-Hans.json，还原时写回原件而不是当补丁产�
   const fixture = makePackage();
   const official = path.join(fixture.ion, 'i18n', 'zh-Hans.json');
   writeFileSync(official, '{"official":"词典"}');
-  applyPatches(patchOptions(fixture));
+  applyPatches({ ...patchOptions(fixture), catalogIsOriginal: true });
   assert.notEqual(readFileSync(official, 'utf8'), '{"official":"词典"}', '补丁应覆盖官方词典');
 
   restoreFiles({ packageRoot: fixture.packageRoot, revertRoot: fixture.revertRoot });

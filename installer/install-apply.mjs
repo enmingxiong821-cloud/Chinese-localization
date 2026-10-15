@@ -128,8 +128,19 @@ export function refreshPackage(sourceRoot, destinationRoot, { log = () => {}, re
 
 const relativeOf = (appRoot, file) => path.relative(path.dirname(appRoot), file).split(path.sep).join('/');
 
-/** 三处补丁。返回 patched 映射（相对包根 → 新文件 sha256）与新增文件列表。 */
-export function applyPatches({ packageRoot, baseCatalog, overrides, revertRoot, log = () => {} }) {
+/**
+ * 三处补丁。返回 patched 映射（相对包根 → 新文件 sha256）与新增文件列表。
+ * catalogIsOriginal 由调用方按**官方源包**判定：副本里的 zh-Hans.json 在重复安装时是上一轮的
+ * 补丁产物，若拿副本当依据，就会被备份成「原件」，还原时反把旧中文词典写回去。
+ */
+export function applyPatches({
+  packageRoot,
+  baseCatalog,
+  overrides,
+  revertRoot,
+  log = () => {},
+  catalogIsOriginal = false
+}) {
   const appRoot = path.join(packageRoot, 'app');
   const patched = {};
   const added = [];
@@ -140,12 +151,18 @@ export function applyPatches({ packageRoot, baseCatalog, overrides, revertRoot, 
   const { catalog, applied } = buildCatalog(baseParsed, overrides);
   const zhPath = path.join(appRoot, ...REL_I18N_DIR.split('/'), `${TARGET_LOCALE}.json`);
   const zhText = serializeCatalog(catalog);
+  const zhRelative = relativeOf(appRoot, zhPath);
   // 官方若某天自带 zh-Hans.json，先备份：还原时它是官方原件，不能当补丁产物删掉
-  const catalogPreexisted = existsSync(zhPath);
-  if (catalogPreexisted) backupFile(packageRoot, relativeOf(appRoot, zhPath), revertRoot);
+  if (catalogIsOriginal) {
+    backupFile(packageRoot, zhRelative, revertRoot);
+  } else {
+    // 官方源没有这个文件，备份里的同名文件只可能是上一轮安装留下的补丁产物，
+    // 留着会让「还原」把旧词典写回副本——还原路径上这是假成功，必须清掉
+    rmSync(path.join(revertRoot, 'files', ...zhRelative.split('/')), { force: true });
+  }
   writeFileAtomic(zhPath, zhText);
-  if (!catalogPreexisted) added.push(relativeOf(appRoot, zhPath));
-  patched[relativeOf(appRoot, zhPath)] = digest(Buffer.from(zhText, 'utf8'));
+  if (!catalogIsOriginal) added.push(zhRelative);
+  patched[zhRelative] = digest(Buffer.from(zhText, 'utf8'));
   log(`已生成中文词典 ${TARGET_LOCALE}.json（覆盖 ${applied} 条）`);
 
   const assetsDir = path.join(appRoot, ...REL_ASSETS_DIR.split('/'));

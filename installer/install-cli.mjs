@@ -9,6 +9,7 @@ import {
   APP_DIR,
   MIN_COVERAGE,
   README_NAME,
+  REL_I18N_DIR,
   TARGET_LOCALE,
   WHITELIST_EXPECTED,
   findWhitelistTargets,
@@ -105,10 +106,18 @@ async function install() {
 
   const identity = await readSourceIdentity(source.packageRoot);
   const state = readState(paths.statePath);
+  // 词典是否原件只认官方源包：副本里的同名文件多半是上一轮安装留下的补丁产物
+  const catalogRelative = [APP_DIR, ...REL_I18N_DIR.split('/'), `${TARGET_LOCALE}.json`];
+  const catalogIsOriginal = existsSync(path.join(source.packageRoot, ...catalogRelative));
+  // 补丁产物混进备份目录后，还原会把旧词典写回副本。幂等判据必须把它算作「需要重做」，
+  // 否则修好安装器后重跑一次也清不掉旧安装的残留。
+  const staleCatalogBackup = !catalogIsOriginal
+    && existsSync(path.join(paths.revertRoot, 'files', ...catalogRelative));
   if (state
     && state.sourceIdentitySha256 === identity.identitySha256
     && state.tableSha256 === table.sha256
-    && patchedIntact(paths.packageRoot, state)) {
+    && patchedIntact(paths.packageRoot, state)
+    && !staleCatalogBackup) {
     log('\n已安装且为最新版本，未做任何改动。');
     return;
   }
@@ -145,7 +154,8 @@ async function install() {
     baseCatalog,
     overrides: table.data,
     revertRoot: paths.revertRoot,
-    log
+    log,
+    catalogIsOriginal
   });
 
   const locale = writeLocale({ configPath: paths.configPath, revertRoot: paths.revertRoot, log });
