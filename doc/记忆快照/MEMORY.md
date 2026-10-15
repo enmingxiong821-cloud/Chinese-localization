@@ -1,6 +1,6 @@
 # 记忆索引
 
-- [桌面汉化项目四项决策](project_claude_localization_scope.md) — Claude 路线优先、纯自用、资源复用不接引擎、Electron+TS+C# 栈
+- [桌面汉化项目四项决策](project_claude_localization_scope.md) — Claude 路线优先、资源复用不接引擎、Electron+TS+C# 栈；「先纯自用」已于 2026-10-15 升级为公开仓库
 - [Claude Desktop 四层文本模型](project_claude_desktop_text_layers.md) — 中文资源早已随包发布；只有前端 SPA 层缺中文，被三重门禁锁死
 - [层 C 三道门全锁](project_claude_c1_injection_only.md) — ACL 写不进／签名构建忽略自定义数据目录／带调试开关拒绝启动；说的是「为什么改不了正式安装」，别当落地路径
 - [可写副本通道](project_claude_writable_copy_channel.md) — robocopy 整包 + LOCALAPPDATA 重定向 + **必须加 `--user-data-dir`**（只重定向会抢单实例锁而启动失败）；免 3p
