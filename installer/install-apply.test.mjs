@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { applyPatches, backupFile, refreshPackage, writeFileAtomic, writeLauncher, writeLocale, writeReadme } from './install-apply.mjs';
+import { applyPatches, backupFile, refreshPackage, shortcutScript, writeFileAtomic, writeLauncher, writeLocale, writeReadme } from './install-apply.mjs';
 import { findWhitelistTargets, inspectHtmlFiles, measureCoverage } from './install-plan.mjs';
 import { removeAddedCatalog, restoreFiles, restoreLocale } from './install-restore.mjs';
 
@@ -343,4 +343,18 @@ test('启动器把 userData 指到副本自己的目录，才有独立单实例�
   assert.match(text, /--user-data-dir="%~dp0profile\\Claude"/);
   assert.match(text, /start "" "%~dp0package\\app\\claude\.exe"/);
   assert.equal(text.includes('\n') && !text.includes('\r\n'), false, '启动器必须是 CRLF 换行');
+});
+
+test('快捷方式脚本把输出编码钉成 UTF-8，并回读校验目标', () => {
+  const script = shortcutScript({
+    launcherPath: 'C:\\Users\\某 用户\\AppData\\Local\\Claude-zh\\启动.cmd',
+    installRoot: 'C:\\Users\\某 用户\\AppData\\Local\\Claude-zh',
+    executable: 'C:\\Users\\某 用户\\AppData\\Local\\Claude-zh\\package\\app\\claude.exe'
+  });
+  // PowerShell 5.1 默认按控制台代码页写 stdout，不钉 UTF-8 就会把中文路径读成 U+FFFD
+  assert.match(script, /\[Console\]::OutputEncoding = \[System\.Text\.Encoding\]::UTF8/);
+  // 目标缺失时资源管理器只弹「已经更改或移动」，得在安装当时就失败
+  assert.match(script, /if \(\$ws\.CreateShortcut\(\$p\)\.TargetPath -ne \$target\) \{ exit 4 \}/);
+  assert.match(script, /if \(-not \(Test-Path -LiteralPath \$target\)\) \{ exit 5 \}/);
+  assert.ok(script.includes("'C:\\Users\\某 用户\\AppData\\Local\\Claude-zh\\启动.cmd'"), '路径要原样内联');
 });

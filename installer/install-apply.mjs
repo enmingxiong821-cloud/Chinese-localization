@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { patchHtml, patchWhitelist, buildCatalog, serializeCatalog, setLocale } from './install-patch.mjs';
 import {
   HTML_FILES,
+  PS_UTF8,
   README_NAME,
   REL_ASSETS_DIR,
   REL_BASE_CATALOG,
@@ -252,19 +253,30 @@ export function writeLocale({ configPath, revertRoot, locale = TARGET_LOCALE, lo
 
 const psQuote = value => `'${String(value).replace(/'/g, "''")}'`;
 
-/** 桌面与开始菜单各建一个快捷方式，指向副本启动器。 */
-export function createShortcuts({ launcherPath, installRoot, executable, log = () => {} }) {
-  const script = [
+/**
+ * 桌面与开始菜单各建一个快捷方式，指向副本启动器。
+ * 建完必须回读确认目标还在：快捷方式指向 .cmd，目标缺失时资源管理器只会弹「已经更改或移动」，
+ * 那种失败在安装当时是静默的，所以在这里就让它显形。
+ */
+export function shortcutScript({ launcherPath, installRoot, executable }) {
+  return [
+    PS_UTF8,
     '$ErrorActionPreference = "Stop"',
     '$ws = New-Object -ComObject WScript.Shell',
     `$target = ${psQuote(toWindows(launcherPath))}`,
     `$work = ${psQuote(toWindows(installRoot))}`,
     `$icon = ${psQuote(`${toWindows(executable)},0`)}`,
-    `$dirs = @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))`,
-    `foreach ($d in $dirs) { $p = Join-Path $d ${psQuote(SHORTCUT_NAME)}; $lnk = $ws.CreateShortcut($p); $lnk.TargetPath = $target; $lnk.WorkingDirectory = $work; $lnk.IconLocation = $icon; $lnk.Description = 'Claude Desktop 中文版'; $lnk.Save(); Write-Output $p }`
+    '$dirs = @([Environment]::GetFolderPath(\'Desktop\'), [Environment]::GetFolderPath(\'Programs\'))',
+    `foreach ($d in $dirs) { $p = Join-Path $d ${psQuote(SHORTCUT_NAME)}; $lnk = $ws.CreateShortcut($p); $lnk.TargetPath = $target; $lnk.WorkingDirectory = $work; $lnk.IconLocation = $icon; $lnk.Description = 'Claude Desktop 中文版'; $lnk.Save(); if ($ws.CreateShortcut($p).TargetPath -ne $target) { exit 4 }; if (-not (Test-Path -LiteralPath $target)) { exit 5 }; Write-Output $p }`
   ].join('; ');
+}
+
+export function createShortcuts({ launcherPath, installRoot, executable, log = () => {} }) {
+  const script = shortcutScript({ launcherPath, installRoot, executable });
   const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { encoding: 'utf8', windowsHide: true });
   if (result.error) throw new Error(`无法执行 PowerShell：${result.error.message}`);
+  if (result.status === 4) throw new Error(`快捷方式回读的目标路径不符：${launcherPath}`);
+  if (result.status === 5) throw new Error(`快捷方式指向的启动器不存在：${launcherPath}`);
   if (result.status !== 0) throw new Error(`创建快捷方式失败：${(result.stderr || '').trim() || `退出码 ${result.status}`}`);
   const created = String(result.stdout).split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   log(`已创建快捷方式 ${created.length} 个`);

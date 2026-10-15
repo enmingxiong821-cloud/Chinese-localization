@@ -95,8 +95,19 @@ export function locateOfficialPackage(runner = runPowerShell) {
   return { version, packageRoot: path.resolve(installLocation) };
 }
 
-function runPowerShell(script) {
-  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { encoding: 'utf8' });
+/**
+ * PowerShell 5.1 往管道里写的是控制台代码页（本机 936），Node 按 UTF-8 解会把中文路径读成
+ * U+FFFD。旧版就是这样把快捷方式路径记进状态文件的，还原时按乱码路径找不到文件，快捷方式
+ * 删不掉。让脚本自己把输出编码钉成 UTF-8，两端才对得上。
+ */
+export const PS_UTF8 = '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8';
+
+export function runPowerShell(script) {
+  const result = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', `${PS_UTF8}; ${script}`],
+    { encoding: 'utf8' }
+  );
   if (result.error) throw new Error(`无法执行 PowerShell：${result.error.message}`);
   return result;
 }
