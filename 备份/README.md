@@ -7,14 +7,14 @@
 | --- | --- | --- |
 | `会话记录/*.jsonl` | 约 36 MB | 本项目主会话的完整记录 |
 | `会话记录/<会话 id>/` | 约 24 MB | 同一会话派生的子代理记录（96 个文件） |
-| `安装器-v1.4.zip` | 约 1.1 MB | 离线安装包，26 个文件，由 `git archive` 从 **v1.4 之后的工作区提交**生成；解压后双击 `installer\安装.cmd` 即可 |
+| `安装器-v1.5.zip` | 约 1.1 MB | 离线安装包，26 个文件，由 `git archive` 从 `v1.5` tag 生成；解压后双击 `installer\安装.cmd` 即可 |
 
 会话记录取自 `%USERPROFILE%\.claude\projects\<项目路径slug>\`，原位置仍在，这里是一份副本。
 
 ## 边界
 
 - 会话记录含推理与试错过程，按项目约定**不入库**（入库文档只写结论、用法与残留）。
-- `安装器-v1.4.zip` 里只有本项目自己的代码与 `{哈希键: 中文}` 译文表，**不含** Anthropic 的英文原文，
+- `安装器-v1.5.zip` 里只有本项目自己的代码与 `{哈希键: 中文}` 译文表，**不含** Anthropic 的英文原文，
   可以安全分发；但因为它与 `installer/`、`project/backend/` 内容重复，也没有入库。
 - 归档不代表内容正确：以 `installer/` 与 [`../README.md`](../README.md) 的当前状态为准。
 
@@ -28,5 +28,5 @@
 - 会话记录：Claude Code 自动写在 `%USERPROFILE%\.claude\projects\<项目路径slug>\`，直接复制过来即可。
 - 离线安装包：用 README「发版打包」那一节的 `git archive` 命令，`<tag>` 换成要归档的版本，
   别手工压 `installer/` 目录——安装器还要 `project/backend/` 才能跑。发过新版后记得重打。
-  当前这份建自 v1.4 之后的工作区提交：**安装器代码与 v1.4 tag 一致**（未改生产代码），
-  差别是包内测试换用了 `project/backend/tmp-fixtures.mjs`，跑 `node --test` 不再往系统临时目录堆目录。
+  随包分发的测试会用 `project/backend/tmp-fixtures.mjs` 建临时目录并在跑完时清掉，跑 `node --test`
+  不会往系统临时目录里堆目录。
