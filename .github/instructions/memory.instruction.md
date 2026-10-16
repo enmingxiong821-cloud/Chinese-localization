@@ -32,10 +32,14 @@ applyTo: '**'
 
 ## 当前状态
 
-v1.4 已交付：`installer/` 是可安装/校验/还原的一键安装器，层 C 界面中文已在真实安装的已登录主界面上验收。
+v1.5 已交付（维护版：译文与补丁一字未改，安装行为与 v1.4 相同）：`installer/` 是可安装/校验/还原的
+一键安装器，层 C 界面中文已在真实安装的已登录主界面上验收。
 
 交付路径只有 `installer/`，它递归 import 到的 `project/backend/` 三个模块（`safe-io.mjs`、
 `install-identity.mjs`、`scanner.mjs`）是活代码，其余已归档：早期工具链在
 `project/backend/archive/`，早期文档在 `doc/archive/`。**改动只针对活代码与 `installer/`。**
+
+官方每次升级后要重跑安装器复验，并补译新冒出来的缺口键——补译用 `project/tools/` 里的工具链
+（其 `README.md` 有判据与用法）。它不属交付路径，也不随发布 zip 分发，改它不必发版。
 
 现状、键数、覆盖率以 `README.md` 与 `installer/translations/SOURCES.md` 为准。

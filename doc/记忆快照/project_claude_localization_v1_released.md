@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5ea68adf-d2a1-4ffd-b689-f366df2e1707
-  modified: 2026-10-16T11:34:41.252Z
+  modified: 2026-10-16T11:51:03.617Z
 ---
 
 2026-10-14：层 C 汉化**首版已交付并装机**，用户授权「全权给你，以及发布新版本」，提交已推送到
@@ -40,6 +40,10 @@ v1.3 不改译文与补丁。**GitHub 发布附件的文件名只能用 ASCII**�
 
 ## 本机当前状态（2026-10-16）
 
+- **v1.5 已发布**：`main` 推到 `796227b`，注释 tag `v1.5` 已推送，GitHub release 已建（Latest），
+  附件 `Chinese-localization-v1.5.zip`（1,150,761 字节）。附件、tag 的 `git archive` 输出、本地
+  `备份/安装器-v1.5.zip` **三者 SHA-256 同为 `62e7178d…`**，可由 tag 复现；v1.4 的本地包已删。
+  发布正文与两个提交都不含 AI 署名（作者只有 `enmingxiong821-cloud`）。
 - 中文版副本已安装在 `%LOCALAPPDATA%\Claude-zh\`（约 756 MB）。`verify` 通过。
 - **译文表已按官方 `2.42304.0.0`（35,441 键）补齐**：主词典覆盖 35,274 / 35,441 = **99.53%**，
   动态词典 49 / 49 = **100%**。

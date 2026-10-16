@@ -23,5 +23,6 @@
 | --- | --- |
 | [`installer/`](../installer) | **交付路径**：一键安装器、译文表、说明模板 |
 | [`project/backend/`](../project/backend) | 安装器依赖的活代码（`safe-io.mjs`、`install-identity.mjs`、`scanner.mjs`），其余见 [`project/backend/archive/`](../project/backend/archive/README.md) |
+| [`project/tools/`](../project/tools/README.md) | 官方升级后补译译文表的工具链（导出缺口 → 校验 → 合并 → 审计）。**不属交付路径，不随发布 zip 分发** |
 | [`research/`](../research) | 调研阶段的 GitHub Search 脚本与 README 原文快照 |
 | [`备份/`](../备份/README.md) | 本地归档（会话记录、离线安装包），**不进 git** |
