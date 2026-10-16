@@ -1,6 +1,6 @@
 # Chinese-localization
 
-Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Desktop**。
+Windows 桌面应用汉化的工具链与流程。**当前只针对 Windows 版 Claude Desktop**。
 
 ## 给使用者：下载与安装
 
