@@ -228,7 +228,7 @@ function assertJavaScript(file) {
   if (result.status !== 0) throw new Error(`补丁后的脚本语法校验失败：${path.basename(file)}\n${(result.stderr || '').trim()}`);
 }
 
-/** 只改共享配置里的 locale 一个字段，旧值单独记一份 sidecar（不整文件备份，避免带出凭据）。 */
+/** 只改副本自己那份配置里的 locale 一个字段，旧值单独记一份 sidecar（不整文件备份，避免带出凭据）。 */
 export function writeLocale({ configPath, revertRoot, locale = TARGET_LOCALE, log = () => {} }) {
   const sidecar = path.join(revertRoot, 'config-locale.json');
   ensureDirectory(revertRoot);

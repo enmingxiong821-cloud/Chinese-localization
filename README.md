@@ -19,9 +19,12 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 
 ## 现状
 
-层 C（前端 SPA，34,954 键 + 动态词典 49 键）的中文**已完整落地并装机验收**，主词典键覆盖率
-**99.52%**（34,786 / 34,954），动态词典 **100%**。未覆盖的 168 条全是品牌名、型号名、技术标识与
+层 C（前端 SPA，35,441 键 + 动态词典 49 键）的中文**已完整落地**，主词典键覆盖率
+**99.53%**（35,274 / 35,441），动态词典 **100%**。未覆盖的 167 条全是品牌名、型号名、技术标识与
 示例值（`GitHub`、`Haiku`、`MCP`、URL、UUID…），**本就应保留英文原样**，回落即得官方原文。
+
+安装门禁已对官方 **2.42304.0.0** 复验通过：白名单锚点恰好 2 处、四个 HTML 锚点齐备、
+覆盖率高于 95% 阈值，译文表与这一版的键空间吻合。
 
 交付形态是**一键安装器**（[`installer/`](installer/)）：双击 `安装.cmd`，自动复制一份官方程序的
 独立副本、打入中文、建好快捷方式。**官方安装目录一个字节都不动**，随时可整体删除还原。
@@ -35,12 +38,12 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 | --- | --- | --- |
 | A | `app/locales/*.pak` | Chromium 自带，`zh-CN.pak`/`zh-TW.pak` 随包发布，**无需处理** |
 | B | `app/resources/{locale}.json` | 43 个语言，`zh-Hans.json` 随包发布，**无需处理** |
-| C | `app/resources/ion-dist/i18n/*.json` 与 `i18n/dynamic/*.json` | 前端 SPA，34,954 + 49 键，**官方无中文**，需打补丁 |
+| C | `app/resources/ion-dist/i18n/*.json` 与 `i18n/dynamic/*.json` | 前端 SPA，35,441 + 49 键，**官方无中文**，需打补丁 |
 | D | 副本 `profile\Claude\config.json` 的 `locale` | 应用级语言开关（副本自己的配置） |
 
 层 C 的 locale 解析链是「`localStorage['spa:locale']` → `i18n-catalogs` 元数据 →
-11 语言白名单」，白名单里没有中文。`ion-dist` 的 11 份资源键集完全一致
-（各 34,954 键，0 缺 0 余），所以补一份 `zh-Hans.json` 在结构上是安全的。
+11 语言白名单」，白名单里没有中文。`en-US` 是键集的**超集**（其余 10 份各缺 49–55 键，官方自己的
+译文也在追赶），所以拿 `en-US.json` 作底座补一份 `zh-Hans.json` 在结构上是安全的 —— 键多出来是常态。
 `i18n/dynamic/` 是另一部小词典（模型与思考档位选择器的文案，49 键），前端把 base 与 dynamic
 放在**同一个 `Promise.all`** 里取，任一份失败整盘就不加载 —— 所以两份必须一起补。
 
@@ -62,7 +65,7 @@ Windows 桌面应用汉化的工具链与流程。**当前只针对 Claude Deskt
 
 | # | 位置 | 改动 |
 | --- | --- | --- |
-| 1 | `app/resources/ion-dist/i18n/zh-Hans.json` | 新增文件：官方 `en-US.json` 作底座 + 34,786 条中文覆盖 |
+| 1 | `app/resources/ion-dist/i18n/zh-Hans.json` | 新增文件：官方 `en-US.json` 作底座 + 35,274 条中文覆盖 |
 | 2 | `app/resources/ion-dist/i18n/dynamic/zh-Hans.json` | 新增文件：官方 `dynamic/en-US.json` 作底座 + 49 条中文覆盖 |
 | 3 | `app/resources/ion-dist/assets/v1/shared-*.js` | 两处 11 语言白名单数组各追加 `"zh-Hans"`（共 +20 字节，恰好 2 处） |
 | 4 | `app/resources/ion-dist/{index,frame-shell,frame-connect,frame-manage}.html` | 各在 `<meta charset>` 之后插入 159 字节，注册中文目录并把 `localStorage["spa:locale"]` 钉为 `zh-Hans` |
@@ -126,8 +129,8 @@ git archive --format=zip -o Chinese-localization.zip HEAD README.md LICENSE inst
 解压后双击 `installer\安装.cmd` 即可；包内的 `installer/*.test.mjs` 也能就地 `node --test`。
 `project/backend/archive/` 是冻结的早期工具链，安装器用不到，别打进去。
 
-**附件名只能用 ASCII**：GitHub 会把发布附件名里的非 ASCII 字符丢掉（传 `Claude汉化-v1.3.zip`
-会变成 `Claude.-v1.3.zip`），所以用 `Chinese-localization-vX.Y.Z.zip` 这种形式。
+**附件名只能用 ASCII**：GitHub 会把发布附件名里的非 ASCII 字符丢掉（传 `Claude汉化-v1.4.zip`
+会变成 `Claude.-v1.4.zip`），所以用 `Chinese-localization-vX.Y.Z.zip` 这种形式。
 
 ## 目录
 
@@ -141,4 +144,4 @@ git archive --format=zip -o Chinese-localization.zip HEAD README.md LICENSE inst
 ## 边界
 
 - 不修改 `claude.exe`，不破坏签名，不关闭更新，不持久化提权。
-- 层 C 的 34,954 条源字符串属 Anthropic，**不随本仓库分发**；译文表只存 `{哈希键: 中文}`。
+- 层 C 的 35,441 条源字符串属 Anthropic，**不随本仓库分发**；译文表只存 `{哈希键: 中文}`。

@@ -6,9 +6,9 @@
 本轮**未写入任何文件、未修改配置、未启动带调试参数的应用、未解包 asar**。
 
 > **版本口径说明。** 本文跨越两个官方版本：§一～§十的探测与反向工程结论绑定
-> **2.31226.1.0**（见 §11 自述），当时层 C 为 34,213 键；§11 起改用**当前基准 2.37337.1.0**，
-> 层 C 为 **34,954** 键、译文命中 **34,725**（99.34%）。文中键数、覆盖率一律以当前基准为准，
-> 译文表的权威口径见 [`installer/translations/SOURCES.md`](../installer/translations/SOURCES.md)。
+> **2.31226.1.0**（见 §11 自述），§11 起改用当时的最新基准，此后官方版本继续演进。
+> **文中出现的键数与覆盖率都是写作当时的快照，会随官方版本漂移**——这类数字一律以
+> [`installer/translations/SOURCES.md`](../installer/translations/SOURCES.md) 为准。
 >
 > **实现口径。** 本文的**技术结论**（四层文本、11 语言白名单、可写副本路线、四处补丁）是现行
 > 交付的依据；**实现状态、安装与还原细节以 [`installer/`](../installer) 与 [`README.md`](../README.md) 为准**，
@@ -225,7 +225,7 @@ return T_([e]);                                             // 才回落白名�
 
 ### 存量资产盘点
 
-现有 `claude-N4tZS0` / `k8ZcOH` / `vsyg70` 候选目录中的 `frontend.zh-CN.json` 只有 64 条——这是设计时的存量，不是最终结果。最终译文与覆盖率见 §13.3 / §13.4（34,725 / 34,954 = 99.34%）。
+现有 `claude-N4tZS0` / `k8ZcOH` / `vsyg70` 候选目录中的 `frontend.zh-CN.json` 只有 64 条——这是设计时的存量，不是最终结果。最终译文与覆盖率见 §13.3 / §13.4 与 [`installer/translations/SOURCES.md`](../installer/translations/SOURCES.md)。
 
 ---
 
@@ -605,29 +605,29 @@ if(UZ(process.argv)&&!QZ()){
 
 | 门禁 | 副本里的解法 |
 | --- | --- |
-| 包里无 `zh-Hans` 目录 | 自己写 `ion-dist/i18n/zh-Hans.json`（34,954 键，与 en-US 键集逐键一致） |
-| `i18n-catalogs` meta 恒空 | 4 个 HTML 注入 `data-i18n-catalogs="zh-Hans:..."`（逗号分隔、`locale:a.b.c` **四段**格式） |
-| 11 语言白名单无中文 | `shared-50-Bmc9oUMm.js` 的两处数组补 `"zh-Hans"` |
+| 包里无 `zh-Hans` 目录 | 自己写 `ion-dist/i18n/zh-Hans.json`（以官方 en-US 为底座，键集逐键一致） |
+| `i18n-catalogs` meta 恒空 | 4 个 HTML 注入 `data-i18n-catalogs="zh-Hans:<哈希>"`，同一段里钉 `localStorage["spa:locale"]` |
+| 11 语言白名单无中文 | `shared-*.js` 的两处数组各补 `"zh-Hans"` |
 
-**白名单的真实作用被澄清了**：`i18n-catalogs` meta 才是**主开关**（同时携带语言名与内容哈希）；
-`w_`（模糊匹配）/ `M_`（严格校验）两个 11 语言数组只管**从 `navigator.languages` 自动探测**。
-所以两者都要动，但 meta 是必要项。
+**注入的 meta 是惰性的**：SPA 解析它的正则只认「语种:八位.八位」两段，我们写的三段值匹配不上，
+解析出来是空数组，该 meta 不参与语言选择。**真正生效的是同一段注入里的
+`localStorage["spa:locale"]`，以及 `shared-*.js` 里那两个语种白名单数组**；meta 目前只是无害的
+多余字节，换译文时不必跟着改版本号。
 
 补丁前原件按字节备份进副本的 `revert\`，产物写完做 `node --check` 语法校验。
 补丁脚本对白名单锚点出现次数有断言（要求恰好 2 处），数目不符即拒绝安装而非猜着改。
 
 ### 13.3 译文来源与缺口
 
-**译文表**：`installer/translations/zh-Hans.overrides.json` 共 **35,062** 条，只存 `{哈希键: 中文}`，
-不含英文原文。其中 **34,725** 条命中当前官方基线 `en-US.json`（34,954 键），覆盖率 **99.34%**；
-另 **337** 条是官方已删的旧键，不影响使用。
-另有 16 个无许可来源实测只多 98 条，弃用（不背许可风险）。
-命中率测量、多源冲突、许可细节见 `doc/现成包复用命中率.md`。
+**译文表**：`installer/translations/zh-Hans.overrides.json`，只存 `{哈希键: 中文}`，不含英文原文。
+另有 16 个无许可来源实测只多 98 条，弃用（不背许可风险）。条数、覆盖率、来源与多源冲突细节见
+[`installer/translations/SOURCES.md`](../installer/translations/SOURCES.md)，
+命中率测量见 [`archive/现成包复用命中率.md`](archive/现成包复用命中率.md)。
 
-**仍缺 229 条**：全部是 URL / UUID / 标识符，判定为无需翻译，回落即得官方原文。
+**未覆盖的键**：全部是 URL / UUID / 标识符、品牌名与模型名，判定为无需翻译，回落即得官方原文。
 
-**结构校验**：逐条比对占位符签名 / HTML 标签 / printf 变量 / ICU 类型 / 首尾空白，
-34,725 / 34,725 合规，0 错误。校验器遵循的一条硬性规则：
+**结构校验**：逐条比对占位符签名 / HTML 标签 / printf 变量 / ICU 类型 / 首尾空白，全部合规，0 错误。
+校验器遵循的一条硬性规则：
 
 > **ICU 的 `=N` 精确匹配分支与 `one` 单复数分支性质不同，不可一并丢弃。**
 > `{count, plural, =2 {Delete # sessions} other {Delete all # sessions}}`
@@ -635,15 +635,18 @@ if(UZ(process.argv)&&!QZ()){
 
 ### 13.4 验收结果
 
+当时的验收快照（绑定 2.37337.1.0）：
+
 ```
 总键          34954
-最终覆盖      34725  = 99.34%   （译文表 35062 条 = 命中 34725 + 官方已删旧键 337）
+最终覆盖      34725  = 99.34%
 仍缺          229    —— 全部是 URL / UUID / 标识符，无需翻译
 ```
 
-那 229 条回落即得原文，内容完全一致 → **实际语义覆盖 100%**。
+未覆盖的键回落即得原文，内容一致 → **实际语义覆盖 100%**。
+当前口径见 [`installer/translations/SOURCES.md`](../installer/translations/SOURCES.md)。
 
-**装机验收**：装入副本重启，首屏**零英文回落**。截图 `doc/验收-沙箱中文界面.png`。
+**装机验收**：装入副本重启，首屏**零英文回落**。截图 [`archive/验收-沙箱中文界面.png`](archive/验收-沙箱中文界面.png)。
 可见：新建／自定义／更多／最近、"你启动的会话将显示在这里"、"你来了！"、
 "今天我能帮你做什么？"、默认模型、项目或文件夹、给你的建议及三条建议项。
 
@@ -660,7 +663,7 @@ if(UZ(process.argv)&&!QZ()){
 2. 门禁：基线词典与 4 个 HTML 必须存在；语言白名单锚点必须**恰好 2 处**；
    译文覆盖率 ≥ 95%，否则拒绝安装（退出码 1）；
 3. 复制副本（`robocopy`，staging → 校验 → rename）；
-4. 打三处补丁，原件按字节备份进 `revert\`，`node --check` 验证产物语法；
+4. 打四处补丁，原件按字节备份进 `revert\`，`node --check` 验证产物语法；
 5. 写副本自己的 `profile\Claude\config.json` 的 `locale`，旧值记进 `revert\config-locale.json`；
 6. 生成 `启动.cmd`（`LOCALAPPDATA` 重定向 + `--user-data-dir`）与桌面／开始菜单快捷方式。
 
