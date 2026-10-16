@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { tmpDirSync } from '../project/backend/tmp-fixtures.mjs';
 import { applyPatches, backupFile, refreshPackage, shortcutScript, writeFileAtomic, writeLauncher, writeLocale, writeReadme } from './install-apply.mjs';
 import { findWhitelistTargets, inspectHtmlFiles, measureCoverage } from './install-plan.mjs';
 import { removeAddedCatalog, restoreFiles, restoreLocale } from './install-restore.mjs';
@@ -12,7 +12,7 @@ const INDEX_HTML = '<head><meta charset="UTF-8"><meta name="viewport" content="w
 const SHELL_HTML = '<head><meta charset="utf-8"><title>t</title></head>';
 
 function makePackage() {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-pkg-'));
+  const root = tmpDirSync('claude-zh-pkg-');
   const app = path.join(root, 'app');
   const ion = path.join(app, 'resources', 'ion-dist');
   const assets = path.join(ion, 'assets', 'v1');
@@ -156,7 +156,7 @@ test('restoreFiles 备份目录缺失时标出 noBackup，不伪装成还原完�
 });
 
 test('restoreLocale 拒绝 sidecar 把写入引到配置目录之外', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-sl-'));
+  const root = tmpDirSync('claude-zh-sl-');
   const configPath = path.join(root, 'profile', 'Claude', 'config.json');
   const revertRoot = path.join(root, 'revert');
   mkdirSync(path.dirname(configPath), { recursive: true });
@@ -207,7 +207,7 @@ test('measureCoverage 统计交集、多余键与比例', () => {
 });
 
 test('writeLocale 记录旧值且只改一个字段', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-cfg-'));
+  const root = tmpDirSync('claude-zh-cfg-');
   const configPath = path.join(root, 'config.json');
   writeFileSync(configPath, '{\n  "locale": "en-US",\n  "keep": "unchanged"\n}\n');
   const result = writeLocale({ configPath, revertRoot: path.join(root, 'revert') });
@@ -217,7 +217,7 @@ test('writeLocale 记录旧值且只改一个字段', () => {
 });
 
 test('writeLocale 第二次执行不改动文件', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-cfg-'));
+  const root = tmpDirSync('claude-zh-cfg-');
   const configPath = path.join(root, 'config.json');
   writeFileSync(configPath, '{"locale":"en-US","a":1}');
   const revertRoot = path.join(root, 'revert');
@@ -228,7 +228,7 @@ test('writeLocale 第二次执行不改动文件', () => {
 });
 
 test('restoreLocale 把值改回安装前的旧值', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-cfg-'));
+  const root = tmpDirSync('claude-zh-cfg-');
   const configPath = path.join(root, 'config.json');
   writeFileSync(configPath, '{"locale":"en-US","a":1}');
   const revertRoot = path.join(root, 'revert');
@@ -239,7 +239,7 @@ test('restoreLocale 把值改回安装前的旧值', () => {
 });
 
 test('restoreLocale 删掉安装时新建的配置文件，不留 locale 残留', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-cfg-'));
+  const root = tmpDirSync('claude-zh-cfg-');
   const configPath = path.join(root, 'profile', 'Claude', 'config.json');
   const revertRoot = path.join(root, 'revert');
   writeLocale({ configPath, revertRoot });
@@ -251,7 +251,7 @@ test('restoreLocale 删掉安装时新建的配置文件，不留 locale 残留'
 });
 
 test('restoreLocale 只摘掉 locale 字段，应用自己写的键原样保留', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-cfg-'));
+  const root = tmpDirSync('claude-zh-cfg-');
   const configPath = path.join(root, 'config.json');
   const revertRoot = path.join(root, 'revert');
   writeLocale({ configPath, revertRoot });
@@ -263,7 +263,7 @@ test('restoreLocale 只摘掉 locale 字段，应用自己写的键原样保留'
 });
 
 test('writeReadme 替换中文占位符', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-rm-'));
+  const root = tmpDirSync('claude-zh-rm-');
   const readme = path.join(root, '说明.txt');
   writeReadme(readme, '装在这里：\n    {{安装目录}}\n共 {{译文条数}} 条\n未知：{{没有这个键}}', {
     安装目录: 'C:\\x',
@@ -277,7 +277,7 @@ test('writeReadme 替换中文占位符', () => {
 });
 
 test('refreshPackage 清掉上一版残留的补丁文件，副本与官方包保持一致', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-rf-'));
+  const root = tmpDirSync('claude-zh-rf-');
   const source = path.join(root, 'source');
   const dest = path.join(root, 'dest');
   const assets = 'app/resources/ion-dist/assets/v1';
@@ -328,14 +328,14 @@ test('官方若自带 zh-Hans.json，还原时写回原件而不是当补丁产�
 });
 
 test('writeFileAtomic 落盘内容与预期一致且不留临时文件', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-io-'));
+  const root = tmpDirSync('claude-zh-io-');
   const file = path.join(root, 'x.json');
   writeFileAtomic(file, '内容');
   assert.equal(readFileSync(file, 'utf8'), '内容');
 });
 
 test('启动器把 userData 指到副本自己的目录，才有独立单实例锁', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'claude-zh-ln-'));
+  const root = tmpDirSync('claude-zh-ln-');
   const launcher = path.join(root, '启动.cmd');
   writeLauncher(launcher);
   const text = readFileSync(launcher, 'utf8');

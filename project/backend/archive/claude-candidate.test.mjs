@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { composeClaudeResource, buildClaudeCandidate } from './claude-candidate.mjs';
 
 test('常用短文案翻译，未知内容完整保留并单独统计', () => {
@@ -53,7 +53,7 @@ test('损坏原生占位符保留原文并报告，非法中文结构拒绝', ()
   assert.throws(() => composeClaudeResource({}, []));
 });
 test('报告英文资源中缺失的原生中文键', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'claude-candidate-'));
+  const root = await tmpDirAsync('claude-candidate-');
   await mkdir(path.join(root, 'resources/ion-dist/i18n'), { recursive: true });
   await writeFile(path.join(root, 'resources/en-US.json'), JSON.stringify({ a: 'Cancel', b: 'Settings', c: 'Only English' }));
   await writeFile(path.join(root, 'resources/zh-Hans.json'), JSON.stringify({ a: '取消' }));

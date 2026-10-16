@@ -1,9 +1,9 @@
 /** 备份与恢复事务测试：数据全部在系统临时目录合成，从不写入真实安装目录。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { buildRestorePlan, createBackup, planBackup, verifyBackup } from './backup-transaction.mjs';
 import { readInstallIdentity } from '../install-identity.mjs';
 
@@ -14,7 +14,7 @@ const PATCHED = 'resources/ion-dist/i18n/zh-Hans.json';
 const ABSENT = 'resources/ion-dist/i18n/zh-Hans.legacy.json';
 
 async function packageFixture(overrides = {}) {
-  const root = await mkdtemp(path.join(tmpdir(), 'backup-pkg-'));
+  const root = await tmpDirAsync('backup-pkg-');
   const files = {
     'AppxManifest.xml': MANIFEST,
     'app/resources/app.asar': 'asar-fixture',
@@ -33,7 +33,7 @@ async function packageFixture(overrides = {}) {
 }
 
 async function backupRoot() {
-  return mkdtemp(path.join(tmpdir(), 'backup-dest-'));
+  return tmpDirAsync('backup-dest-');
 }
 
 test('计划为只读且记录完整标识与目标指纹', async () => {

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { publishCandidate } from './candidate-artifacts.mjs';
 import { createCandidateReview, renderReview } from './candidate-review.mjs';
 
@@ -14,7 +14,7 @@ test('报告转义资源内容且不包含可执行脚本', () => {
   assert.ok(html.includes("default-src 'none'"));
 });
 test('Cursor审核只呈现真实待处理条目', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'candidate-review-'));
+  const root = await tmpDirAsync('candidate-review-');
   const dir = await publishCandidate(root, 'cursor-', 'cursor', { 'coverage.json': JSON.stringify({ coverage: { accepted: 1 } }), 'pending.json': JSON.stringify([{ module: 'm', key: 'k', source: 'Hello', reason: 'missing' }]) });
   const result = await createCandidateReview(dir);
   assert.equal(result.rows, 1);
@@ -23,7 +23,7 @@ test('Cursor审核只呈现真实待处理条目', async () => {
   await assert.rejects(createCandidateReview(dir), /校验失败/);
 });
 test('Claude报告包含两组候选及原文保留计数', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'candidate-review-'));
+  const root = await tmpDirAsync('candidate-review-');
   const dir = await publishCandidate(root, 'claude-', 'claude', { 'report.json': JSON.stringify({ resources: [{ counts: { unchanged: 2 } }, { counts: { unchanged: 3 } }] }), 'desktop.review.json': JSON.stringify([{ key: 'k', source: 'Save', target: '保存', status: 'page-review-required', origin: 'starter-glossary' }]), 'frontend.review.json': '[]', 'desktop.zh-CN.json': JSON.stringify({ k: '保存' }), 'frontend.zh-CN.json': '{}' });
   const result = await createCandidateReview(dir);
   assert.equal(result.rows, 1);
@@ -32,7 +32,7 @@ test('Claude报告包含两组候选及原文保留计数', async () => {
 });
 
 test('编辑页安全保留译文开头换行', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'candidate-review-newline-'));
+  const root = await tmpDirAsync('candidate-review-newline-');
   const dir = await publishCandidate(root, 'claude-', 'claude', { 'report.json': JSON.stringify({ resources: [{ counts: { unchanged: 0 } }, { counts: { unchanged: 0 } }] }), 'desktop.review.json': JSON.stringify([{ key: 'k', source: '\nHello', target: '\n你好', status: 'review', origin: 'fixture' }]), 'frontend.review.json': '[]', 'desktop.zh-CN.json': JSON.stringify({ k: '\n你好' }), 'frontend.zh-CN.json': '{}' });
   const result = await createCandidateReview(dir);
   assert.ok(result.html.includes('&#10;你好</textarea>'));

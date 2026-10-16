@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { publishCandidate } from './candidate-artifacts.mjs';
 import { draftFor, loadReviewSource, mergeApprovedReview, validateReviewDraft } from './review-decisions.mjs';
 
 async function fixture(app, items) {
-  const parent = await mkdtemp(path.join(tmpdir(), 'review-decisions-'));
+  const parent = await tmpDirAsync('review-decisions-');
   const files = app === 'cursor'
     ? { 'coverage.json': JSON.stringify({ coverage: { accepted: 1 } }), 'pending.json': JSON.stringify(items) }
     : { 'report.json': JSON.stringify({ resources: [{ counts: { unchanged: 3 } }, { counts: { unchanged: 0 } }] }), 'desktop.review.json': JSON.stringify(items), 'frontend.review.json': '[]', 'desktop.zh-CN.json': JSON.stringify(Object.fromEntries(items.map(item => [item.key, item.target]))), 'frontend.zh-CN.json': '{}' };
@@ -80,7 +80,7 @@ test('源清单拒绝重复身份与格式异常', async () => {
 });
 
 test('Claude审核行必须和候选资源同键同译文', async () => {
-  const parent = await mkdtemp(path.join(tmpdir(), 'review-mismatch-'));
+  const parent = await tmpDirAsync('review-mismatch-');
   const dir = await publishCandidate(parent, 'claude-', 'claude', {
     'report.json': JSON.stringify({ resources: [{ counts: { unchanged: 0 } }, { counts: { unchanged: 0 } }] }),
     'desktop.review.json': JSON.stringify([{ key: 'k', source: 'Save', target: '保存', status: 'review', origin: 'fixture' }]),
@@ -103,7 +103,7 @@ test('超过单条和总草稿边界的候选不能生成默认草稿', async ()
 });
 
 test('Claude仅合并批准译文并保留审计记录，源候选不变', async () => {
-  const parent = await mkdtemp(path.join(tmpdir(), 'review-merge-'));
+  const parent = await tmpDirAsync('review-merge-');
   const dir = await publishCandidate(parent, 'claude-', 'claude', {
     'report.json': JSON.stringify({ resources: [{ counts: { unchanged: 1 } }, { counts: { unchanged: 1 } }] }),
     'desktop.review.json': JSON.stringify([

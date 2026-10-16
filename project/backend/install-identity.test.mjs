@@ -1,9 +1,9 @@
 /** 安装标识测试：全部数据在系统临时目录合成，不读取也不触碰真实安装。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from './tmp-fixtures.mjs';
 import { DEFAULT_KEY_FILES, compareIdentity, identityComplete, readInstallIdentity } from './install-identity.mjs';
 
 const MANIFEST = `<?xml version="1.0" encoding="utf-8"?>
@@ -20,7 +20,7 @@ const baseFiles = {
 };
 
 async function packageFixture(files = baseFiles, manifest = MANIFEST) {
-  const root = await mkdtemp(path.join(tmpdir(), 'install-identity-'));
+  const root = await tmpDirAsync('install-identity-');
   for (const [relative, value] of Object.entries({ 'AppxManifest.xml': manifest, ...files })) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });

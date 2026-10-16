@@ -1,13 +1,13 @@
 /** 合成安装资源测试：测试数据只在系统临时目录创建。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, realpath, stat, symlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile, readFile, realpath, stat, symlink } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from './tmp-fixtures.mjs';
 import { scanApplication } from './scanner.mjs';
 
 async function fixture(files = {}) {
-  const root = await mkdtemp(path.join(tmpdir(), 'localization-scan-'));
+  const root = await tmpDirAsync('localization-scan-');
   for (const [relative, value] of Object.entries(files)) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });

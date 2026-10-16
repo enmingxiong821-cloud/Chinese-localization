@@ -14,10 +14,10 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { assertLoopback, httpBase, listDebugTargets, openSession } from './cdp-session.mjs';
 import { publishCandidate } from './candidate-artifacts.mjs';
 import {
@@ -75,7 +75,7 @@ test('预加载脚本改写 querySelector 且让位真实 meta', () => {
 });
 
 test('注入计划只拦目标语言的三个路径且标注不落盘', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'inject-plan-'));
+  const root = await tmpDirAsync('inject-plan-');
   const candidate = await publishCandidate(root, 'claude-', 'claude', {
     'resources/ion-dist/i18n/zh-Hans.json': '{"c1":"base"}\n',
     'resources/ion-dist/i18n/zh-Hans.overrides.json': '{}\n',
@@ -99,7 +99,7 @@ test('注入计划只拦目标语言的三个路径且标注不落盘', async ()
 });
 
 test('候选被改动或缺少目标文件时拒绝出计划', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'inject-bad-'));
+  const root = await tmpDirAsync('inject-bad-');
   await assert.rejects(resolveCatalogFiles(root), /ENOENT|清单|目录/);
   const candidate = await publishCandidate(root, 'claude-', 'claude', {
     'resources/ion-dist/i18n/zh-Hans.json': '{}\n'
@@ -189,9 +189,9 @@ const skip = !BROWSERS
   : process.env.CDP_E2E ? false : '默认跳过真实浏览器验证，需要时置 CDP_E2E=1';
 
 test('端到端：注入前后 locale 解析链的真实行为', { skip }, async t => {
-  const webRoot = await mkdtemp(path.join(tmpdir(), 'inject-web-'));
-  const profile = await mkdtemp(path.join(tmpdir(), 'inject-profile-'));
-  const candidateRoot = await mkdtemp(path.join(tmpdir(), 'inject-cand-'));
+  const webRoot = await tmpDirAsync('inject-web-');
+  const profile = await tmpDirAsync('inject-profile-');
+  const candidateRoot = await tmpDirAsync('inject-cand-');
   await mkdir(path.join(webRoot, 'i18n', 'dynamic'), { recursive: true });
   await writeFile(path.join(webRoot, 'index.html'), await readFile(FIXTURE, 'utf8'));
   // 服务端只提供 en-US：zh-Hans 在磁盘上根本不存在，取到内容就只能是拦截应答。
@@ -268,9 +268,9 @@ test('端到端：注入前后 locale 解析链的真实行为', { skip }, async
 });
 
 test('端到端：注入前已有的 spa:locale 会被精确还原', { skip }, async t => {
-  const webRoot = await mkdtemp(path.join(tmpdir(), 'inject-web2-'));
-  const profile = await mkdtemp(path.join(tmpdir(), 'inject-profile2-'));
-  const candidateRoot = await mkdtemp(path.join(tmpdir(), 'inject-cand2-'));
+  const webRoot = await tmpDirAsync('inject-web2-');
+  const profile = await tmpDirAsync('inject-profile2-');
+  const candidateRoot = await tmpDirAsync('inject-cand2-');
   await mkdir(path.join(webRoot, 'i18n', 'dynamic'), { recursive: true });
   await writeFile(path.join(webRoot, 'index.html'), await readFile(FIXTURE, 'utf8'));
   for (const relative of ['i18n/en-US.json', 'i18n/en-US.overrides.json', 'i18n/dynamic/en-US.json']) {

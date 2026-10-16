@@ -118,6 +118,9 @@ CDP_E2E=1 node --test --test-force-exit
 `--test-force-exit` 是这条深度路径必需的：浏览器进程句柄会让测试进程退不出（该 flag 需要 Node 22 以上；
 默认那条命令不依赖它，Node 18 也能跑）。
 
+写新测试要用 `project/backend/tmp-fixtures.mjs` 的 `tmpDirSync()` / `tmpDirAsync()` 建临时目录，
+别直接 `mkdtemp`——该模块在测试文件跑完时统一清理，直接建会往系统临时目录里持续堆积。
+
 ## 发版打包
 
 发布附件直接由 `git archive` 从提交内容生成，只含运行所需的最小闭合，不夹带文档与归档：
@@ -139,6 +142,7 @@ git archive --format=zip -o Chinese-localization.zip HEAD README.md LICENSE inst
 | [`installer/`](installer/) | **交付路径**：安装器、译文表、说明模板 |
 | [`project/backend/`](project/backend/) | 安装器依赖的活代码：`safe-io.mjs`、`install-identity.mjs`、`scanner.mjs` |
 | [`project/backend/archive/`](project/backend/archive/README.md) | 早期工具链（Cursor 链路、CDP 注入、候选审核、备份事务），冻结保留 |
+| [`project/tools/`](project/tools/README.md) | 官方升级后补译译文表用的工具链（导出缺口 → 校验 → 合并 → 审计），**不随发布 zip 分发** |
 | [`doc/`](doc/) | 技术设计依据与已归档的早期文档 |
 
 ## 边界

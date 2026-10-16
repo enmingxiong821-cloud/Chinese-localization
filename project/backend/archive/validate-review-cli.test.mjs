@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { publishCandidate } from './candidate-artifacts.mjs';
 import { loadReviewSource, draftFor, assertSameCandidateVersion } from './review-decisions.mjs';
 
@@ -13,7 +13,7 @@ const run = promisify(execFile);
 const CLI = fileURLToPath(new URL('./validate-review-cli.mjs', import.meta.url));
 
 async function fixture() {
-  const parent = await mkdtemp(path.join(tmpdir(), 'review-cli-'));
+  const parent = await tmpDirAsync('review-cli-');
   return publishCandidate(parent, 'claude-', 'claude', {
     'report.json': JSON.stringify({ resources: [{ counts: { unchanged: 0 } }, { counts: { unchanged: 0 } }] }),
     'desktop.review.json': JSON.stringify([{ key: 'k', source: 'Hello {0}', target: '你好 {0}', status: 'review', origin: 'fixture' }]),

@@ -1,14 +1,14 @@
 /** 受控读写原语的专项测试：夹具全部在系统临时目录合成，只读原语不写入任何位置。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, realpath, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, realpath, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { assertRealDirectory, hashFile, listRegularFiles, readBoundedFile, safeRelative, sha256 } from './safe-io.mjs';
+import { tmpDirAsync } from './tmp-fixtures.mjs';
 
 const LIMITS = { maxDepth: 8, maxFiles: 100, maxTotalBytes: 1024 * 1024 };
 
-const fixture = async () => mkdtemp(path.join(tmpdir(), 'safe-io-'));
+const fixture = async () => tmpDirAsync('safe-io-');
 
 test('sha256 与已知向量一致', () => {
   assert.equal(sha256(Buffer.alloc(0)), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');

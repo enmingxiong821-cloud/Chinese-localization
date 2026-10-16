@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5ea68adf-d2a1-4ffd-b689-f366df2e1707
-  modified: 2026-10-15T10:07:19.931Z
+  modified: 2026-10-15T13:11:58.509Z
 ---
 
 在本项目工作区跑测试，**只能用 `node --test`（不带参数）**。

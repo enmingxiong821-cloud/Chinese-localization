@@ -1,9 +1,9 @@
 /** 语言资源枚举测试：数据全部在系统临时目录合成，不读取也不触碰真实安装。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { BASE_LOCALE, buildLocaleSkeleton, buildProbeCandidate, enumerateLocaleResources, FRONTEND_DIR, looksLikeDisplayText, PROBE_MARKER, pseudolocalize, SHELL_DIR } from './resource-enum.mjs';
 
 const MANIFEST = '<Package><Identity Name="Claude" Version="1.0.0.0" Publisher="CN=X" ProcessorArchitecture="x64" /></Package>';
@@ -29,7 +29,7 @@ function baseFiles(extra = {}) {
 }
 
 async function packageFixture(files = baseFiles()) {
-  const root = await mkdtemp(path.join(tmpdir(), 'locale-enum-'));
+  const root = await tmpDirAsync('locale-enum-');
   for (const [relative, value] of Object.entries(files)) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });

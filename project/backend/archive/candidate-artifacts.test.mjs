@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, truncate, writeFile, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, truncate, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpDirAsync } from '../tmp-fixtures.mjs';
 import { publishCandidate, validateCandidateDirectory } from './candidate-artifacts.mjs';
 
-async function parent() { return mkdtemp(path.join(tmpdir(), 'candidate-integrity-')); }
+async function parent() { return tmpDirAsync('candidate-integrity-'); }
 
 test('发布完整候选并通过精确文件集与哈希校验', async () => {
   const root = await parent();

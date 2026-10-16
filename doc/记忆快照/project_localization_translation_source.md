@@ -1,11 +1,11 @@
 ---
 name: localization-translation-source
-description: 层 C 译源已收官：MIT 现成包覆盖 93.30%，缺口 2,291 条已自译，语义覆盖 100% 并装机验收；实测报告在 doc/现成包复用命中率.md
+description: 层 C 译源已收官：MIT 现成包覆盖 93.30%，缺口 2,291 条已自译，语义覆盖 100% 并装机验收；实测报告在 doc/archive/现成包复用命中率.md
 metadata:
   node_type: memory
   type: project
   originSessionId: 5ea68adf-d2a1-4ffd-b689-f366df2e1707
-  modified: 2026-10-14T11:53:23.217Z
+  modified: 2026-10-16T10:54:27.464Z
 ---
 
 层 C（`ion-dist/i18n/`，34,213 个哈希键）的译源**不必从零翻**，且该问题**已于 2026-10-14 收官**。
@@ -24,7 +24,7 @@ metadata:
 - 缺口 **2,291 条**切 6 批并行自译，逐条结构校验 **2,291/2,291 合规，0 错误**。
 - 合并后覆盖 **33,897 / 34,213 = 99.08%**；剩 316 条**全部与英文原文一字不差**
   （URL / ARN / UUID / OAuth scope / 字体名），回落即得原文 → **实际语义覆盖 100%**。
-- 已装入可写副本沙箱并重启验收，**首屏零英文回落**（截图 `doc/验收-沙箱中文界面.png`）。
+- 已装入可写副本沙箱并重启验收，**首屏零英文回落**（截图 `doc/archive/验收-沙箱中文界面.png`）。
 
 ## 关键认知（容易踩错）
 
@@ -33,16 +33,29 @@ metadata:
   都停在同一个旧快照上。
 - **ICU 的 `=N` 精确匹配分支与 `one` 单复数分支性质不同，不可一并丢弃。**
   中文无单复数，本项目约定统一只留 `other`；但 `=N` 丢掉会造成语义错误
-  （`=2 {Delete # sessions}` 删掉后，选 2 个会话会显示"删除全部"）。详见 `doc/现成包复用命中率.md`。
+  （`=2 {Delete # sessions}` 删掉后，选 2 个会话会显示"删除全部"）。详见 `doc/archive/现成包复用命中率.md`。
 - **不能只看 README 判许可**，也不能只信一次库检索：三家 README 都没提许可但都有 MIT LICENSE；
   另有检索报为 MIT 的仓库实际**没有** LICENSE 文件、或 LICENSE 内容是 `404: Not Found`。
 
+## 后续补译（2026-10-16）
+
+官方升到 **2.42304.0.0**（35,441 键）后又出现 **797** 条缺口，切 4 批并行补译：
+译 **630** 条、判 **162** 条本就该保留英文（品牌／路径／URL／UUID／时间档位）、
+**5** 条是纯模板串（值里只有占位符，如 `{status}…`），译出来与英文逐字节相同故不入表。译文表 35,123 → **35,753**。
+重跑结构校验：占位符签名差异 3 条、HTML 标签差异 6 条，逐条核对**全属预期**
+（2 条丢 `{article}`、1 条把 `{marketplaceName}` 提出 `plural` 分支；6 条都因丢弃 `one` 分支）。
+
 **Why:** 这推翻"层 C 无中文弹药、必须自译 34,150 条"的悲观估计，最终把内容层从"不可能"做到 100%。
 
-**How to apply:** 讨论层 C 内容时先读 `doc/现成包复用命中率.md`，**别重跑测量**。
-复现脚本在 `%TEMP%\zhpack-scripts\`（校验器 `validate-translations.mjs`、合并 `combine.mjs`、
-装机 `install.mjs`）。若要入库，只存**译文值 + 来源标注**，不带 Anthropic 英文原文
+**How to apply:** 讨论层 C 内容时先读 `doc/archive/现成包复用命中率.md`，**别重跑测量**。
+若要入库，只存**译文值 + 来源标注**，不带 Anthropic 英文原文
 （见 `README.md` 分发边界），并保留各家 MIT 版权声明。
 **未做**：跨源术语一致性审计（现成包用词按版本漂移，与我方自译的 1,975 条未统一）。
+
+**补译脚本是临时的、别依赖**：每次官方升级那套缺口分析／校验／合并脚本都写在 `%TEMP%` 下
+（首轮 `zhpack-scripts`、2026-10-16 那轮 `zhgap14`），**重启或清临时目录就没了**，
+写进记忆的路径指针已两次失效。下次官方升级前先确认脚本还在，不在就按 `doc/进度与交接.md`
+「从零复现」重写——校验口径（占位符签名、ICU `=N` 与 `select` 分支、HTML 标签、printf 变量、
+zh===en 计数）比脚本本身重要，那套判据已记在 `installer/translations/SOURCES.md` 的「校验」一节。
 
 相关：[[claude-writable-copy-channel]]、[[claude-desktop-text-layers]]、[[claude-localization-scope]]
