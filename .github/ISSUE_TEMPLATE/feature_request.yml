@@ -1,0 +1,39 @@
+name: 功能建议
+description: 译文补充或修正、安装器行为改进、文档建议
+title: "[建议] "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 建议类型
+      options:
+        - 译文补充或修正
+        - 安装器行为
+        - 官方升级适配
+        - 文档
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 现状
+      description: 现在是什么样。译文问题请给出出现位置（页面/按钮）和截图
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望
+      description: 你希望改成什么样，以及为什么这样更好
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+    validations:
+      required: false

@@ -1,0 +1,67 @@
+name: 问题反馈
+description: 安装、启动、界面显示或还原出问题时用这个
+title: "[问题] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交前请先确认：用的是最新 release，且官方 Claude Desktop 已安装并可正常启动。
+
+        **不要粘贴 OAuth token、`config.json` 全文或任何账号凭据**；日志里的用户名和路径请先打码。
+        安全问题请走 [SECURITY.md](../blob/main/SECURITY.md) 里的私下渠道。
+
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Desktop 版本
+      description: 官方版「关于」里显示的版本号
+      placeholder: 2.42304.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: installer-version
+    attributes:
+      label: 安装器版本
+      placeholder: v1.5
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows 版本
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 出问题的环节
+      options:
+        - 安装（双击 安装.cmd）
+        - verify 校验
+        - 启动副本
+        - 界面显示 / 译文
+        - 还原
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 现象
+      description: 做了什么、看到什么、期望是什么
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 输出或退出码
+      description: 终端输出，或 `.install-state.json` 里与问题相关的非敏感字段
+      render: text
+    validations:
+      required: false
