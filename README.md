@@ -133,7 +133,8 @@ git archive --format=zip -o Chinese-localization.zip HEAD README.md LICENSE inst
 `project/backend/archive/` 是冻结的早期工具链，安装器用不到，别打进去。
 
 **附件名只能用 ASCII**：GitHub 会把发布附件名里的非 ASCII 字符丢掉（传 `Claude汉化-v1.4.zip`
-会变成 `Claude.-v1.4.zip`），所以用 `Chinese-localization-vX.Y.Z.zip` 这种形式。
+会变成 `Claude.-v1.4.zip`），所以用 `Chinese-localization-vX.Y.Z.zip` 这种形式。上传前先把包
+**复制成 ASCII 文件名**再传；`gh release create 文件#标签` 只改显示名，下载名仍是本地文件名。
 
 ## 目录
 
