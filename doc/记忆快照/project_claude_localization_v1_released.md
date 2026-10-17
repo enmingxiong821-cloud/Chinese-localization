@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5ea68adf-d2a1-4ffd-b689-f366df2e1707
-  modified: 2026-10-16T11:51:03.617Z
+  modified: 2026-10-17T14:59:57.102Z
 ---
 
 2026-10-14：层 C 汉化**首版已交付并装机**，用户授权「全权给你，以及发布新版本」，提交已推送到
@@ -44,6 +44,10 @@ v1.3 不改译文与补丁。**GitHub 发布附件的文件名只能用 ASCII**�
   附件 `Chinese-localization-v1.5.zip`（1,150,761 字节）。附件、tag 的 `git archive` 输出、本地
   `备份/安装器-v1.5.zip` **三者 SHA-256 同为 `62e7178d…`**，可由 tag 复现；v1.4 的本地包已删。
   发布正文与两个提交都不含 AI 署名（作者只有 `enmingxiong821-cloud`）。
+- 2026-10-17 仓库设置完善（**不发版**）：`main` 加 ruleset（禁强推/禁删除）、合并只留 squash、
+  关 Projects 与 Discussions、开 secret scanning + push protection、补 `SECURITY.md`、
+  issue/PR 模板与 `CONTRIBUTING.md`、行为准则、加 windows-latest 的 `node --test` 工作流
+  （两次运行均通过）。社区健康度 42% → 71% → 100%。
 - 中文版副本已安装在 `%LOCALAPPDATA%\Claude-zh\`（约 756 MB）。`verify` 通过。
 - **译文表已按官方 `2.42304.0.0`（35,441 键）补齐**：主词典覆盖 35,274 / 35,441 = **99.53%**，
   动态词典 49 / 49 = **100%**。
@@ -85,7 +89,9 @@ v1.4 之后的新提交是干净的。
 **Why:** 防止下次接手时以为「从来没加过 AI 署名」而白查一遍；也解释为什么那条规则写得那么硬。
 
 **How to apply:** 不要再往提交里加任何 AI 署名。**清理需要改写 18 个提交 + 强制推送**，
-而全局 settings 硬禁 `git push --force`，公开仓库强推还会跟已克隆的人冲突——
-**不要主动提议，用户问了才评估**（2026-10-16 问过一次，用户没让做）。
+而全局 settings 硬禁 `git push --force`，公开仓库强推还会跟已克隆的人冲突；
+2026-10-17 起 `main` 上另有 ruleset「main 保护」（禁删除、禁强推，管理员也不可绕过），
+要清历史得先删 ruleset、强推后再重建——**不要主动提议，用户问了才评估**
+（2026-10-16 问过一次，用户没让做）。
 
 相关：[[claude-writable-copy-channel]]、[[claude-c1-injection-only]]、[[localization-translation-source]]
