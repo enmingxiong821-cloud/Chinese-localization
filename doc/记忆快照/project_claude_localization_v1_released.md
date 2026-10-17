@@ -1,11 +1,11 @@
 ---
 name: claude-localization-v1-released
-description: 汉化已交付并装机：接手先读工作区 doc/进度与交接.md；最新发布 v1.6（仓库维护版，安装行为同 v1.5；此前 v1.5 修测试临时目录泄漏、工具链入库，v1.4 补译 630 条跟上官方 2.42304.0.0）；附件名只能用 ASCII 且 #标签不改进下载名；发布线 v1.2 修品牌名误译、v1.2.1 修快捷方式路径乱码、v1.3 改交付形态；本机副本在 %LOCALAPPDATA%\Claude-zh，已于 2026-10-16 刷新到 2.42304.0.0；官方 config.json 残留一个无害的 locale 键未清理
+description: 汉化已交付并装机：接手先读工作区 doc/进度与交接.md；最新发布 v1.7（文档维护版，安装行为同 v1.5；此前 v1.6 补社区文件与仓库设置，v1.5 修测试临时目录泄漏、工具链入库，v1.4 补译 630 条跟上官方 2.42304.0.0）；附件名只能用 ASCII 且 #标签不改进下载名；发布线 v1.2 修品牌名误译、v1.2.1 修快捷方式路径乱码、v1.3 改交付形态；本机副本在 %LOCALAPPDATA%\Claude-zh，已于 2026-10-16 刷新到 2.42304.0.0；官方 config.json 残留一个无害的 locale 键未清理
 metadata:
   node_type: memory
   type: project
   originSessionId: 5ea68adf-d2a1-4ffd-b689-f366df2e1707
-  modified: 2026-10-17T15:04:26.039Z
+  modified: 2026-10-17T15:58:01.907Z
 ---
 
 2026-10-14：层 C 汉化**首版已交付并装机**，用户授权「全权给你，以及发布新版本」，提交已推送到
@@ -34,7 +34,9 @@ metadata:
 补译工具链「导出缺口 → 校验 → 合并 → 审计」收进 `project/tools/`，**不随发布 zip 分发**）
 → `v1.6`（**仓库维护版，安装行为与 v1.5 完全相同**：补 `SECURITY.md`、`CONTRIBUTING.md`、行为准则与
 issue/PR 模板，`main` 加分支保护、合并收敛为 squash、开 secret scanning，新增 windows-latest 的
-`node --test` 工作流。附件内容与 v1.5 一致，只有打包元数据不同）。
+`node --test` 工作流。附件内容与 v1.5 一致，只有打包元数据不同）
+→ `v1.7`（**文档维护版，安装行为不变**：修正交接文档里「分支保护没开」的过期记述，README 补上
+发布附件必须先复制成 ASCII 文件名再上传。附件里只有 `README.md` 与 v1.6 不同）。
 
 v1.2 起补丁点由三处变四处，**升级必须重跑安装器**；v1.2.1 只影响建快捷方式那一刻，译文与补丁不受影响，
 但已有安装的状态文件若已写坏，需删掉 `%LOCALAPPDATA%\Claude-zh\.install-state.json` 再跑一次。
@@ -44,9 +46,9 @@ v1.3 不改译文与补丁。**GitHub 发布附件的文件名只能用 ASCII**�
 
 ## 本机当前状态（2026-10-17）
 
-- **v1.6 已发布**：`main` 推到 `9ec8cdd`，注释 tag `v1.6` 已推送，GitHub release 已建（Latest），
-  附件 `Chinese-localization-v1.6.zip`（1,150,761 字节）。附件、tag 的 `git archive` 输出、本地
-  `备份/安装器-v1.6.zip` **三者 SHA-256 同为 `ee6ddf78…`**，可由 tag 复现；v1.5 的本地包保留。
+- **v1.7 已发布**：`main` 推到 `824ab4b`，注释 tag `v1.7` 已推送，GitHub release 已建（Latest），
+  附件 `Chinese-localization-v1.7.zip`（1,150,837 字节）。附件、tag 的 `git archive` 输出、本地
+  `备份/安装器-v1.7.zip` **三者 SHA-256 同为 `8989cdbb…`**，可由 tag 复现；v1.5／v1.6 的本地包保留。
   发布正文与提交都不含 AI 署名（作者只有 `enmingxiong821-cloud`）。
 - 2026-10-17 仓库设置完善（**随后以 v1.6 发布**）：`main` 加 ruleset（禁强推/禁删除）、合并只留 squash、
   关 Projects 与 Discussions、开 secret scanning + push protection、补 `SECURITY.md`、
